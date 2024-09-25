@@ -1,0 +1,4 @@
+Pre-trained MobileNet Model:
+https://github.com/thedevyansh/oak-d
+
+
