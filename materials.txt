@@ -1,4 +1,9 @@
 Pre-trained MobileNet Model:
 https://github.com/thedevyansh/oak-d
 
+Oak-d Lite manuals:
+-https://pysource.com/2022/02/01/install-and-run-oak-d-lite-on-windows-depthai/
+-https://github.com/luxonis/depthai/blob/main/README.md
 
+Dataset 3D-object detection:
+https://github.com/google-research-datasets/Objectron

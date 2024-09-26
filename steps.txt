@@ -1,0 +1,5 @@
+-ask koby about hand X camera attachement patent
+-generic camera + ai model activation file 
+-find a working YOLO (using depthai-viewer for example) - (.blob)
+-ai model for finding key points on objects detected by our YOLO 
+-ai for calculating orientationg based on the points above
