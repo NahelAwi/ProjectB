@@ -12,23 +12,26 @@ import cv2
 import depthai as dai
 import numpy as np
 import time
+import blobconverter
 
-# Get argument first
-nnPath = str((Path(__file__).parent / Path('../models/yolo-v4-tiny-tf_openvino_2021.4_6shave.blob')).resolve().absolute())
-if 1 < len(sys.argv):
-    arg = sys.argv[1]
-    if arg == "yolo3":
-        nnPath = str((Path(__file__).parent / Path('../models/yolo-v3-tiny-tf_openvino_2021.4_6shave.blob')).resolve().absolute())
-    elif arg == "yolo4":
-        nnPath = str((Path(__file__).parent / Path('../models/yolo-v4-tiny-tf_openvino_2021.4_6shave.blob')).resolve().absolute())
-    else:
-        nnPath = arg
-else:
-    print("Using Tiny YoloV4 model. If you wish to use Tiny YOLOv3, call 'tiny_yolo.py yolo3'")
+# # Get argument first
+# nnPath = str((Path(__file__).parent / Path('../models/yolo-v4-tiny-tf_openvino_2021.4_6shave.blob')).resolve().absolute())
+# if 1 < len(sys.argv):
+#     arg = sys.argv[1]
+#     if arg == "yolo3":
+#         nnPath = str((Path(__file__).parent / Path('../models/yolo-v3-tiny-tf_openvino_2021.4_6shave.blob')).resolve().absolute())
+#     elif arg == "yolo4":
+#         nnPath = str((Path(__file__).parent / Path('../models/yolo-v4-tiny-tf_openvino_2021.4_6shave.blob')).resolve().absolute())
+#     else:
+#         nnPath = arg
+# else:
+#     print("Using Tiny YoloV4 model. If you wish to use Tiny YOLOv3, call 'tiny_yolo.py yolo3'")
 
-if not Path(nnPath).exists():
-    import sys
-    raise FileNotFoundError(f'Required file/s not found, please run "{sys.executable} install_requirements.py"')
+# if not Path(nnPath).exists():
+#     import sys
+#     raise FileNotFoundError(f'Required file/s not found, please run "{sys.executable} install_requirements.py"')
+
+nnPath = blobconverter.from_zoo(name="yolov4_tiny_coco_416x416", shaves=6)  # YOLOv3 Tiny for object detection
 
 # tiny yolo v4 label texts
 labelMap = [
@@ -62,7 +65,7 @@ nnOut.setStreamName("nn")
 
 # Properties
 camRgb.setPreviewSize(416, 416)
-camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_48_P)
 camRgb.setInterleaved(False)
 camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
 camRgb.setFps(40)
@@ -77,6 +80,7 @@ detectionNetwork.setIouThreshold(0.5)
 detectionNetwork.setBlobPath(nnPath)
 detectionNetwork.setNumInferenceThreads(2)
 detectionNetwork.input.setBlocking(False)
+
 
 # Linking
 camRgb.preview.link(detectionNetwork.input)
@@ -126,6 +130,9 @@ with dai.Device(pipeline) as device:
 
         if inRgb is not None:
             frame = inRgb.getCvFrame()
+
+            frame = frame.transpose(2, 0, 1)  # Convert from HWC to CHW
+            
             cv2.putText(frame, "NN fps: {:.2f}".format(counter / (time.monotonic() - startTime)),
                         (2, frame.shape[0] - 4), cv2.FONT_HERSHEY_TRIPLEX, 0.4, color2)
 
@@ -134,6 +141,7 @@ with dai.Device(pipeline) as device:
             counter += 1
 
         if frame is not None:
+            print("frame.shape = ", frame.shape)
             displayFrame("rgb", frame)
 
         if cv2.waitKey(1) == ord('q'):

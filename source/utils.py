@@ -3,6 +3,9 @@ import cv2
 import numpy as np
 import math
 import blobconverter
+from pathlib import Path
+import time
+import argparse
 
 # # Function to create DepthAI pipeline for RGB and depth streams
 # def create_pipeline():
@@ -46,6 +49,7 @@ def create_pipeline():
     # Define sources and outputs
     cam_rgb = pipeline.create(dai.node.ColorCamera)
     pose_nn = pipeline.create(dai.node.NeuralNetwork)
+    det = pipeline.create(dai.node.DetectionParser)
     xout_rgb = pipeline.create(dai.node.XLinkOut)
     xout_nn = pipeline.create(dai.node.XLinkOut)
 

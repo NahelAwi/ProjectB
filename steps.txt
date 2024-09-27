@@ -3,3 +3,4 @@
 -find a working YOLO (using depthai-viewer for example) - (.blob)
 -ai model for finding key points on objects detected by our YOLO 
 -ai for calculating orientationg based on the points above
+-check depthai-viewer for correct use of YOLO
