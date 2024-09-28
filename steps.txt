@@ -1,10 +1,10 @@
 
 
 Main Plan:
+-use segmentation + PCA for tilt prediction
+
 -understand this Model : deeplabv3_resnet101
     Architecture, possible optimizations: more classes, faster ...
-
--use segmentation + PCA for tilt prediction
 
 -find better model for segmentation.
     try these models from OpenVINO's Model Zoo (by order):
