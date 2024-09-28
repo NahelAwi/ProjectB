@@ -1,15 +1,42 @@
--ask koby about hand X camera attachement patent
--generic camera + ai model activation file 
 
 
-Main:
+Main Plan:
 -understand this Model : deeplabv3_resnet101
     Architecture, possible optimizations: more classes, faster ...
--find better model for segmentation ?
+
 -use segmentation + PCA for tilt prediction
 
+-find better model for segmentation.
+    try these models from OpenVINO's Model Zoo (by order):
+        deeplabv3_mobilenetv2
+        instance-segmentation-security-0002
+        fastseg-small
+        UNet-Mobilenet-V2
 
-Secondary:
+
+Later (optimizations):
+-if no good model in OpenVINO's Model Zoo, try other pre-trained models and convert them to ".blob"
+-if no good pre-trained models, fine tune one.
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2nd plan (valid only if camera is placed on top of the rotating part of the hand):
+-object alignment detection
+
+
+other less relevant direction:
 -find a working YOLO (using depthai-viewer for example) - (.blob)
 -ai model for finding key points on objects detected by our YOLO 
 -ai for calculating orientationg based on the points above
