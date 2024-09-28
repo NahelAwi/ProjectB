@@ -3,16 +3,16 @@ import cv2
 import numpy as np
 import torch
 import torchvision.transforms as transforms
-from torchvision.models.segmentation import deeplabv3_resnet101
+from torchvision.models.segmentation import deeplabv3_resnet101, DeepLabV3_ResNet101_Weights
 
 # Load pre-trained DeepLabV3 model
-model = deeplabv3_resnet101(pretrained=True)
+model = deeplabv3_resnet101(weights=DeepLabV3_ResNet101_Weights.DEFAULT)
 model.eval()
 
 # Define image transformation
 transform = transforms.Compose([
     transforms.ToPILImage(),
-    transforms.Resize((520, 520)),  # Resize for model input
+    transforms.Resize((300,300)),  # Resize for model input
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
@@ -32,24 +32,33 @@ color_map = create_color_map(NUM_CLASSES)
 pipeline = dai.Pipeline()
 
 # Create RGB camera node
-rgb_cam = pipeline.createColorCamera()
-rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+rgb_cam = pipeline.create(dai.node.ColorCamera)
+rgb_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+# rgb_cam = pipeline.createColorCamera()
+# rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
 rgb_cam.setInterleaved(False)
 rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+rgb_cam.setPreviewSize(300,300)
+rgb_cam.setPreviewKeepAspectRatio(False)
+rgb_cam.setFps(30)
 
 # Create outputs
-rgb_output = pipeline.createXLinkOut()
-rgb_output.setStreamName("video")
+rgb_output = pipeline.create(dai.node.XLinkOut)
+rgb_output.setStreamName("rgb")
 
 # Link nodes
-rgb_cam.video.link(rgb_output.input)
+rgb_cam.preview.link(rgb_output.input)
 
 # Start pipeline
 with dai.Device(pipeline) as device:
-    rgb_queue = device.getOutputQueue(name="video", maxSize=1, blocking=False)
+    rgb_queue = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
 
     while True:
-        rgb_frame = rgb_queue.get().getCvFrame()
+        in_rgb = rgb_queue.get()
+
+        rgb_frame = None
+        if in_rgb is not None:
+            rgb_frame = in_rgb.getCvFrame()
 
         # Transform the image for the segmentation model
         input_tensor = transform(rgb_frame).unsqueeze(0)
@@ -67,7 +76,9 @@ with dai.Device(pipeline) as device:
             output_image[output_predictions == class_id] = color_map[class_id]
 
         # Show the RGB frame with segmentation
+        # print("rgb_frame = ", rgb_frame)
         cv2.imshow("RGB Frame with Segmentation", output_image)
+        cv2.imshow("RGB Frame", rgb_frame)
 
         if cv2.waitKey(1) == ord('q'):
             break

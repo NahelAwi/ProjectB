@@ -42,40 +42,89 @@ import argparse
 
 #     return pipeline
 
+labelMap = [
+    "person",         "bicycle",    "car",           "motorbike",     "aeroplane",   "bus",           "train",
+    "truck",          "boat",       "traffic light", "fire hydrant",  "stop sign",   "parking meter", "bench",
+    "bird",           "cat",        "dog",           "horse",         "sheep",       "cow",           "elephant",
+    "bear",           "zebra",      "giraffe",       "backpack",      "umbrella",    "handbag",       "tie",
+    "suitcase",       "frisbee",    "skis",          "snowboard",     "sports ball", "kite",          "baseball bat",
+    "baseball glove", "skateboard", "surfboard",     "tennis racket", "bottle",      "wine glass",    "cup",
+    "fork",           "knife",      "spoon",         "bowl",          "banana",      "apple",         "sandwich",
+    "orange",         "broccoli",   "carrot",        "hot dog",       "pizza",       "donut",         "cake",
+    "chair",          "sofa",       "pottedplant",   "bed",           "diningtable", "toilet",        "tvmonitor",
+    "laptop",         "mouse",      "remote",        "keyboard",      "cell phone",  "microwave",     "oven",
+    "toaster",        "sink",       "refrigerator",  "book",          "clock",       "vase",          "scissors",
+    "teddy bear",     "hair drier", "toothbrush"
+]
+
 def create_pipeline():
     # Create a pipeline
     pipeline = dai.Pipeline()
 
     # Define sources and outputs
     cam_rgb = pipeline.create(dai.node.ColorCamera)
-    pose_nn = pipeline.create(dai.node.NeuralNetwork)
-    det = pipeline.create(dai.node.DetectionParser)
+    detectionNetwork = pipeline.create(dai.node.YoloDetectionNetwork)
     xout_rgb = pipeline.create(dai.node.XLinkOut)
     xout_nn = pipeline.create(dai.node.XLinkOut)
 
     xout_rgb.setStreamName("rgb")
-    xout_nn.setStreamName("nn")
+    xout_nn.setStreamName("detectionNetwork")
 
-    # Properties
-    cam_rgb.setPreviewSize(456, 256)  # Input size for the model
+    # Configure camera properties
+    cam_rgb.setPreviewSize(416, 416)  # Input size for the model
     cam_rgb.setInterleaved(False)
     cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+    cam_rgb.setFps(30)
 
     # This will automatically download the blob and return the path to it
-    blob_path = blobconverter.from_zoo(name="human-pose-estimation-0001", shaves=6)
+    blob_path = blobconverter.from_zoo(name="yolo-v3-tiny-tf", shaves=6)
     print(f"Blob path: {blob_path}")
 
     # Set model path
-    pose_nn.setBlobPath(blob_path)
-    pose_nn.input.setBlocking(False)
-    pose_nn.input.setQueueSize(1)
+    detectionNetwork.setBlobPath(blob_path)
+    detectionNetwork.input.setBlocking(False)
+    detectionNetwork.input.setQueueSize(1)
+    # Network specific settings
+    detectionNetwork.setConfidenceThreshold(0.5)
+    detectionNetwork.setNumClasses(80)
+    detectionNetwork.setCoordinateSize(4)
+    detectionNetwork.setAnchors([10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326])
+
+    detectionNetwork.setAnchorMasks({
+        "side52": [0, 1, 2],  # Small objects
+        "side26": [3, 4, 5],  # Medium objects
+        "side13": [6, 7, 8]   # Large objects
+    })
+
+    detectionNetwork.setIouThreshold(0.5)
+    detectionNetwork.setNumInferenceThreads(2)
+
 
     # Linking
-    cam_rgb.preview.link(pose_nn.input)
+    cam_rgb.preview.link(detectionNetwork.input)
+    # detectionNetwork.passthrough.link(xout_rgb.input)
     cam_rgb.preview.link(xout_rgb.input)
-    pose_nn.out.link(xout_nn.input)
+    detectionNetwork.out.link(xout_nn.input)
     
     return pipeline
+
+
+def frameNorm(frame, bbox):
+    normVals = np.full(len(bbox), frame.shape[0])
+    normVals[::2] = frame.shape[1]
+    return (np.clip(np.array(bbox), 0, 1) * normVals).astype(int)
+
+def displayFrame(name, frame, detections):
+    color = (255, 0, 0)
+    for detection in detections:
+        bbox = (detection.xmin, detection.ymin, detection.xmax, detection.ymax)
+        print("bbox = ", bbox)
+        bbox = frameNorm(frame, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
+        cv2.putText(frame, labelMap[detection.label], (bbox[0] + 10, bbox[1] + 20), cv2.FONT_HERSHEY_TRIPLEX, 0.5, 255)
+        cv2.putText(frame, f"{int(detection.confidence * 100)}%", (bbox[0] + 10, bbox[1] + 40), cv2.FONT_HERSHEY_TRIPLEX, 0.5, 255)
+        cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color, 2)
+    # Show the frame
+    cv2.imshow(name, frame)
 
 
 def calculate_pca_tilt_angle(keypoints):

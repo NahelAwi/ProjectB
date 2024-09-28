@@ -7,3 +7,6 @@ Oak-d Lite manuals:
 
 Dataset 3D-object detection:
 https://github.com/google-research-datasets/Objectron
+
+2d alignment idea:
+https://blog.roboflow.com/object-alignment/
