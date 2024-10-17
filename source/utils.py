@@ -127,8 +127,8 @@ def displayFrame(name, frame, detections):
     cv2.imshow(name, frame)
 
 
-def calculate_pca_tilt_angle(keypoints):
-    """Calculate the tilt angle of the object using PCA on all keypoints."""
+def calculate_pca_rotation_angle(keypoints):
+    """Calculate the rotation angle of the object using PCA on all keypoints."""
     if len(keypoints) < 2:
         return None
 

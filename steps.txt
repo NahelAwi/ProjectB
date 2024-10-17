@@ -1,10 +1,14 @@
 
 
 Main Plan:
--use segmentation + PCA for tilt prediction
+-use segmentation/edge_detection and depth camera to find key points on the "main" object
+ and use PCA for rotation angle prediction
 
--understand this Model : deeplabv3_resnet101
-    Architecture, possible optimizations: more classes, faster ...
+-first model: deeplabv3_resnet101
+    slow, only 21 classes
+
+second model: maskrcnn_resnet50_fpn
+    slower, more classes
 
 -find better model for segmentation.
     try these models from OpenVINO's Model Zoo (by order):
@@ -13,6 +17,9 @@ Main Plan:
         fastseg-small
         UNet-Mobilenet-V2
 
+Next steps:
+    - try edge detection without details. we don't care what is the object, just care about it's orientation
+    - can also try segmentation or other AI models that work on the camera (blob) - faster
 
 Later (optimizations):
 -if no good model in OpenVINO's Model Zoo, try other pre-trained models and convert them to ".blob"

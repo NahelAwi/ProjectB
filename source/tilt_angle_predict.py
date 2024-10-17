@@ -23,13 +23,13 @@ with dai.Device(pipeline) as device:
         keypoints[:, 0] = keypoints[:, 0] * frame.shape[1]  # Scale X
         keypoints[:, 1] = keypoints[:, 1] * frame.shape[0]  # Scale Y
 
-        # Calculate the tilt angle using all keypoints (PCA method)
+        # Calculate the rotation angle using all keypoints (PCA method)
         if len(keypoints) >= 2:
-            tilt_angle, centroid = calculate_pca_tilt_angle(keypoints)
+            rotation_angle, centroid = calculate_pca_rotation_angle(keypoints)
 
-            if tilt_angle is not None:
-                # Display the tilt angle on the frame
-                cv2.putText(frame, f"Tilt: {tilt_angle:.2f} degrees", (10, 30), 
+            if rotation_angle is not None:
+                # Display the rotation angle on the frame
+                cv2.putText(frame, f"rotation: {rotation_angle:.2f} degrees", (10, 30), 
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
                 # Visualize keypoints and centroid on the frame
@@ -43,12 +43,12 @@ with dai.Device(pipeline) as device:
 
                 # Draw principal axis
                 p1 = (int(centroid[0]), int(centroid[1]))
-                p2 = (int(centroid[0] + 100 * np.cos(np.radians(tilt_angle))), 
-                      int(centroid[1] + 100 * np.sin(np.radians(tilt_angle))))
+                p2 = (int(centroid[0] + 100 * np.cos(np.radians(rotation_angle))), 
+                      int(centroid[1] + 100 * np.sin(np.radians(rotation_angle))))
                 cv2.line(frame, p1, p2, (0, 0, 255), 2)
 
         # Show the frame
-        cv2.imshow("Keypoints with Tilt (PCA)", frame)
+        cv2.imshow("Keypoints with rotation (PCA)", frame)
 
         # Break on 'q' key press
         if cv2.waitKey(1) == ord('q'):
