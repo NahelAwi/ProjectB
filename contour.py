@@ -24,59 +24,14 @@ rgb_output.setStreamName("rgb")
 # Link nodes
 rgb_cam.preview.link(rgb_output.input)
 
-# # Create depth camera node
-# mono_left = pipeline.create(dai.node.MonoCamera)
-# mono_right = pipeline.create(dai.node.MonoCamera)
-
-# mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-# mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
-
-# mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-# mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
-
-# # Create stereo depth node
-# stereo = pipeline.create(dai.node.StereoDepth)
-# # stereo.setOutputDepth(True)
-# # stereo.setConfidenceThreshold(200)
-# # stereo.setRectifyEdgeFillColor(0)  # Black, to better see the cutout
-# # stereo.setExtendedDisparity(True)
-# stereo.setSubpixel(True)  # Enable subpixel precision for finer depth
-# # stereo.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_7x7)
-# # stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
-# stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
-
-
-
-# # Link mono cameras to the stereo depth
-# mono_left.out.link(stereo.left)
-# mono_right.out.link(stereo.right)
-
-# # Create output streams for depth
-# xout_depth = pipeline.create(dai.node.XLinkOut)
-# xout_depth.setStreamName("depth")
-# stereo.depth.link(xout_depth.input)
-
-
 with dai.Device(pipeline) as device:
     rgb_queue = device.getOutputQueue(name="rgb", maxSize=4, blocking=False)
-    depth_queue = device.getOutputQueue(name="depth", maxSize=4, blocking=False)
+    # depth_queue = device.getOutputQueue(name="depth", maxSize=4, blocking=False)
 
     i = 0
     angle = 0
 
     while True:
-
-        # # Get depth frame
-        # depth_frame = depth_queue.get().getFrame()
-        
-        # # Normalize depth frame for visualization
-        # depth_frame_vis = (depth_frame * (255 / stereo.getMaxDisparity())).astype('uint8')
-
-        # # Get the depth value at the center of the image
-        # depth_at_center = depth_frame[depth_frame.shape[0] // 2, depth_frame.shape[1] // 2]
-        # # print(f"Depth at the center: {depth_at_center} mm")
-
-        # cv2.imshow("Depth", depth_frame_vis)
 
         # Get RGB frame
         in_rgb = rgb_queue.get()
@@ -138,10 +93,10 @@ with dai.Device(pipeline) as device:
                 # Get the tilt angle of the ellipse
                 angle += ellipse[2]
                 i += 1
+                # average tilt pers second 
                 if(i == FPS):
                     angle = angle / FPS
                     print(f"Tilt (angle): {angle} degrees")
-                    # print(f"Depth at the center: {depth_at_center} mm")
                     angle = 0
                     i = 0
 

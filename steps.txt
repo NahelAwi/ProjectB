@@ -17,6 +17,9 @@ second model: maskrcnn_resnet50_fpn
         fastseg-small
         UNet-Mobilenet-V2
 
+-edge detection models to try.
+    -Holistically-Nested Edge Detection
+
 Next steps:
     - try edge detection without details. we don't care what is the object, just care about it's orientation
     - can also try segmentation or other AI models that work on the camera (blob) - faster

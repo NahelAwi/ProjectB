@@ -10,3 +10,6 @@ https://github.com/google-research-datasets/Objectron
 
 2d alignment idea:
 https://blog.roboflow.com/object-alignment/
+
+HED edge_detection paper
+    chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://arxiv.org/pdf/1504.06375v2
