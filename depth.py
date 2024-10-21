@@ -76,7 +76,7 @@ with dai.Device(pipeline) as device:
         center_y = height // 2
 
 
-        kernel_size = 3  # Adjust the size of the window
+        kernel_size = 50  # Adjust the size of the window
         start_x = center_x - kernel_size // 2
         start_y = center_y - kernel_size // 2
 

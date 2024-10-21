@@ -17,9 +17,6 @@ second model: maskrcnn_resnet50_fpn
         fastseg-small
         UNet-Mobilenet-V2
 
--edge detection models to try.
-    -Holistically-Nested Edge Detection
-
 Next steps:
     - try edge detection without details. we don't care what is the object, just care about it's orientation
     - can also try segmentation or other AI models that work on the camera (blob) - faster
@@ -51,3 +48,16 @@ other less relevant direction:
 -ai model for finding key points on objects detected by our YOLO 
 -ai for calculating orientationg based on the points above
 -check depthai-viewer for correct use of YOLO
+
+
+
+
+
+
+additions:
+    -minus degrees(i.e. range [-90,90])
+    -mix contour depth -- and results
+    -differ between external and internal edges.
+    -edge detection models to try.
+        -Holistically-Nested Edge Detection
+

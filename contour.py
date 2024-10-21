@@ -13,7 +13,7 @@ rgb_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
 # rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
 rgb_cam.setInterleaved(False)
 rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-rgb_cam.setPreviewSize(640,480)
+rgb_cam.setPreviewSize(720,720)
 rgb_cam.setPreviewKeepAspectRatio(False)
 rgb_cam.setFps(FPS)
 
@@ -45,7 +45,7 @@ with dai.Device(pipeline) as device:
         mid_height = height // 2
         mid_width = width // 2
         # Define the ROI, for example 200x200 pixels around the center
-        roi_size = 300
+        roi_size = 500
         middle_section = frame[mid_height - roi_size//2 : mid_height + roi_size//2,
                                 mid_width - roi_size//2 : mid_width + roi_size//2]
 
@@ -53,13 +53,13 @@ with dai.Device(pipeline) as device:
         gray = cv2.cvtColor(middle_section, cv2.COLOR_BGR2GRAY)
 
         # Apply GaussianBlur to reduce noise
-        blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+        blurred = cv2.GaussianBlur(gray, (5,5), 0)
         
         # Apply Canny edge detection
         edges = cv2.Canny(blurred, 50, 150)
 
         # Show the detected edges
-        # cv2.imshow("Edges", edges)
+        cv2.imshow("Edges", edges)
 
         # Show the blurred
         # cv2.imshow("blurred", blurred)
@@ -68,22 +68,25 @@ with dai.Device(pipeline) as device:
 
         # Dilation to strengthen the edges
         edges_dilated = cv2.dilate(edges, kernel, iterations=3)
-        # cv2.imshow("Edges_dialated", edges_dilated)
+        cv2.imshow("Edges_dialated", edges_dilated)
 
         # Erosion to remove small unwanted edges
-        edges_eroded = cv2.erode(edges_dilated, kernel, iterations=1)
+        edges_eroded = cv2.erode(edges_dilated, kernel, iterations=2)
         cv2.imshow("Edges_eroded", edges_eroded)
 
         # Find contours in the edge-detected image
         contours, _ = cv2.findContours(edges_eroded, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        min_contour_area = 200
+        min_contour_area = 3000
+        # max_contour_area = 16000
+
+        elipse_fix_factor = 50
 
         if(len(contours) > 0):
         # for contour in contours:
             largest_contour = max(contours, key=cv2.contourArea)
 
-            if len(largest_contour) >= 5 and cv2.contourArea(largest_contour) > min_contour_area:  # Need at least 5 points to fit an ellipse
+            if len(largest_contour) >= 5 and cv2.contourArea(largest_contour) > min_contour_area: # and cv2.contourArea(largest_contour) < max_contour_area:  # Need at least 5 points to fit an ellipse
                 ellipse = cv2.fitEllipse(largest_contour)
                 
                 # Draw the ellipse
