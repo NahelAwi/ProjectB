@@ -55,9 +55,8 @@ other less relevant direction:
 
 
 additions:
-    -minus degrees(i.e. range [-90,90])
+    -Tuning parameters for best contours possible (differ between external and internal edges.)
     -mix contour depth -- and results
-    -differ between external and internal edges.
     -edge detection models to try.
         -Holistically-Nested Edge Detection
 

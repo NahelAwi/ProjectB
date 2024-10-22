@@ -45,7 +45,7 @@ with dai.Device(pipeline) as device:
         mid_height = height // 2
         mid_width = width // 2
         # Define the ROI, for example 200x200 pixels around the center
-        roi_size = 500
+        roi_size = 600
         middle_section = frame[mid_height - roi_size//2 : mid_height + roi_size//2,
                                 mid_width - roi_size//2 : mid_width + roi_size//2]
 
@@ -53,7 +53,7 @@ with dai.Device(pipeline) as device:
         gray = cv2.cvtColor(middle_section, cv2.COLOR_BGR2GRAY)
 
         # Apply GaussianBlur to reduce noise
-        blurred = cv2.GaussianBlur(gray, (5,5), 0)
+        blurred = cv2.GaussianBlur(gray, (3,3), 0)
         
         # Apply Canny edge detection
         edges = cv2.Canny(blurred, 50, 150)
@@ -62,16 +62,16 @@ with dai.Device(pipeline) as device:
         cv2.imshow("Edges", edges)
 
         # Show the blurred
-        # cv2.imshow("blurred", blurred)
+        cv2.imshow("blurred", blurred)
 
-        kernel = np.ones((3, 3), np.uint8)
+        kernel = np.ones((5,5), np.uint8)
 
         # Dilation to strengthen the edges
         edges_dilated = cv2.dilate(edges, kernel, iterations=3)
         cv2.imshow("Edges_dialated", edges_dilated)
 
         # Erosion to remove small unwanted edges
-        edges_eroded = cv2.erode(edges_dilated, kernel, iterations=2)
+        edges_eroded = cv2.erode(edges_dilated, kernel, iterations=3)
         cv2.imshow("Edges_eroded", edges_eroded)
 
         # Find contours in the edge-detected image
@@ -80,7 +80,7 @@ with dai.Device(pipeline) as device:
         min_contour_area = 3000
         # max_contour_area = 16000
 
-        elipse_fix_factor = 50
+        # elipse_fix_factor = 50
 
         if(len(contours) > 0):
         # for contour in contours:
@@ -99,6 +99,8 @@ with dai.Device(pipeline) as device:
                 # average tilt pers second 
                 if(i == FPS):
                     angle = angle / FPS
+                    if(angle > 90):
+                        angle = angle - 180
                     print(f"Tilt (angle): {angle} degrees")
                     angle = 0
                     i = 0
