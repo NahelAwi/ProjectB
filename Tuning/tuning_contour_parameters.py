@@ -57,6 +57,7 @@ results = []
 row_images = []
 target_type = frame.shape[-1]  # Target type (3 for color, 1 for grayscale)
 idx = 0
+fidx =1
 
 for blur_kernel in gaussian_kernel_sizes:
     for canny_thresh in canny_thresholds:
@@ -141,4 +142,23 @@ for blur_kernel in gaussian_kernel_sizes:
                         # cv2.imwrite(f"result_{idx}.jpg", annotated_row)
                         # row_images.append(annotated_row)
                         
-                        # exit();
+                        # exit()
+                        
+                        # comparing_edges_eroded = cv2.putText(
+                        #     edges_eroded.copy(),
+                        #     f"ID: {idx}",
+                        #     (10, 100),
+                        #     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
+                        # )
+                        # row_images.append(comparing_edges_eroded)
+                        
+                        # # Create rows of images (e.g., 4 rows in the final grid)
+                        # if len(row_images) == 9:
+                        #     results.append(cv2.hconcat(row_images))
+                        #     row_images = []
+
+                        # if len(results) == 9:
+                        #     final_result = cv2.vconcat(results)
+                        #     cv2.imwrite(f"./results/final_result_batch_{fidx}.jpg", final_result)
+                        #     fidx += 1
+                        #     results = []
