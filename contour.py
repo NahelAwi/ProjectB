@@ -1,5 +1,7 @@
 import cv2
-from source.utils import *
+# from source.utils import *
+import depthai as dai
+import numpy as np
 
 FPS = 15
 
@@ -45,7 +47,7 @@ with dai.Device(pipeline) as device:
         mid_height = height // 2
         mid_width = width // 2
         # Define the ROI, for example 200x200 pixels around the center
-        roi_size = 600
+        roi_size = 400
         middle_section = frame[mid_height - roi_size//2 : mid_height + roi_size//2,
                                 mid_width - roi_size//2 : mid_width + roi_size//2]
 
@@ -53,7 +55,7 @@ with dai.Device(pipeline) as device:
         gray = cv2.cvtColor(middle_section, cv2.COLOR_BGR2GRAY)
 
         # Apply GaussianBlur to reduce noise
-        blurred = cv2.GaussianBlur(gray, (3,3), 0)
+        blurred = cv2.GaussianBlur(gray, (7,7), 0)
         
         # Apply Canny edge detection
         edges = cv2.Canny(blurred, 50, 150)
@@ -64,10 +66,10 @@ with dai.Device(pipeline) as device:
         # Show the blurred
         cv2.imshow("blurred", blurred)
 
-        kernel = np.ones((5,5), np.uint8)
+        kernel = np.ones((3,3), np.uint8)
 
         # Dilation to strengthen the edges
-        edges_dilated = cv2.dilate(edges, kernel, iterations=3)
+        edges_dilated = cv2.dilate(edges, kernel, iterations=2)
         cv2.imshow("Edges_dialated", edges_dilated)
 
         # Erosion to remove small unwanted edges

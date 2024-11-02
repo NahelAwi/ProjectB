@@ -54,9 +54,11 @@ other less relevant direction:
 
 
 
-additions:
+STEPS:
     -Tuning parameters for best contours possible (differ between external and internal edges.)
+        -research contours way of working (alternatives/ parameters / num of points to make a good elipse)
     -mix contour depth -- and results
+    -white putline of edged photos in order to detect long objects
     -edge detection models to try.
         -Holistically-Nested Edge Detection
 

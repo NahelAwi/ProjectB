@@ -61,10 +61,10 @@ fidx =1
 
 for blur_kernel in gaussian_kernel_sizes:
     for canny_thresh in canny_thresholds:
-        for dilate_iter in dilation_iterations:
-            for erode_iter in erosion_iterations:
-                for erode_kernel in erosion_kernel_sizes:
-                    for dila_kernel in dilation_kernel_sizes:
+        for erode_kernel in erosion_kernel_sizes:
+            for dila_kernel in dilation_kernel_sizes:
+                for erode_iter in erosion_iterations:
+                    for dilate_iter in dilation_iterations:
                         
                         # Evaluate the current set of parameters and get intermediate images
                         blurred, edges, edges_dilated, edges_eroded = evaluate_parameters(
@@ -80,53 +80,53 @@ for blur_kernel in gaussian_kernel_sizes:
                         #     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
                         # )
 
-                        blurred = ensure_same_dimensions_and_type(blurred, target_size, target_type)
-                        a_blurred = cv2.putText(
-                            blurred.copy(),
-                            f"Blur: {blur_kernel}",
-                            (10, 100),
-                            cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
-                        )
+                        # blurred = ensure_same_dimensions_and_type(blurred, target_size, target_type)
+                        # a_blurred = cv2.putText(
+                        #     blurred.copy(),
+                        #     f"Blur: {blur_kernel}",
+                        #     (10, 100),
+                        #     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
+                        # )
 
-                        edges = ensure_same_dimensions_and_type(edges, target_size, target_type)
-                        a_edges = cv2.putText(
-                            edges.copy(),
-                            f"Canny: {canny_thresh}",
-                            (10, 100),
-                            cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
-                        )
+                        # edges = ensure_same_dimensions_and_type(edges, target_size, target_type)
+                        # a_edges = cv2.putText(
+                        #     edges.copy(),
+                        #     f"Canny: {canny_thresh}",
+                        #     (10, 100),
+                        #     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
+                        # )
 
-                        edges_dilated = ensure_same_dimensions_and_type(edges_dilated, target_size, target_type)
-                        a_edges_dilated = cv2.putText(
-                            edges_dilated.copy(),
-                            f"Dilation_iter: {dilate_iter}", # dilation Kernel: {dila_kernel}",
-                            (10, 100),
-                            cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
-                        )
-                        a_edges_dilated = cv2.putText(
-                            a_edges_dilated.copy(),
-                            f"Dilation_kernel: {dila_kernel}", # dilation Kernel: {dila_kernel}",
-                            (10, 200),
-                            cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 8, cv2.LINE_AA
-                        )
+                        # edges_dilated = ensure_same_dimensions_and_type(edges_dilated, target_size, target_type)
+                        # a_edges_dilated = cv2.putText(
+                        #     edges_dilated.copy(),
+                        #     f"Dilation_iter: {dilate_iter}", # dilation Kernel: {dila_kernel}",
+                        #     (10, 100),
+                        #     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
+                        # )
+                        # a_edges_dilated = cv2.putText(
+                        #     a_edges_dilated.copy(),
+                        #     f"Dilation_kernel: {dila_kernel}", # dilation Kernel: {dila_kernel}",
+                        #     (10, 200),
+                        #     cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 8, cv2.LINE_AA
+                        # )
 
 
-                        edges_eroded = ensure_same_dimensions_and_type(edges_eroded, target_size, target_type)
-                        a_edges_eroded = cv2.putText(
-                            edges_eroded.copy(),
-                            f"Erosion_iter: {erode_iter}", #erosion kernel: {erode_kernel}",
-                            (10, 100),
-                            cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
-                        )
-                        a_edges_eroded = cv2.putText(
-                            a_edges_eroded.copy(),
-                            f"Erosion_kernel: {erode_kernel}", #erosion kernel: {erode_kernel}",
-                            (10, 200),
-                            cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 8, cv2.LINE_AA
-                        )
+                        # edges_eroded = ensure_same_dimensions_and_type(edges_eroded, target_size, target_type)
+                        # a_edges_eroded = cv2.putText(
+                        #     edges_eroded.copy(),
+                        #     f"Erosion_iter: {erode_iter}", #erosion kernel: {erode_kernel}",
+                        #     (10, 100),
+                        #     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
+                        # )
+                        # a_edges_eroded = cv2.putText(
+                        #     a_edges_eroded.copy(),
+                        #     f"Erosion_kernel: {erode_kernel}", #erosion kernel: {erode_kernel}",
+                        #     (10, 200),
+                        #     cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 8, cv2.LINE_AA
+                        # )
 
                         # Stack intermediate results horizontally (as one row)
-                        result_row = cv2.hconcat([a_blurred, a_edges, a_edges_dilated, a_edges_eroded])
+                        # result_row = cv2.hconcat([a_blurred, a_edges, a_edges_dilated, a_edges_eroded])
                         
                         # # Annotate the row with the parameters
                         # annotated_row = cv2.putText(
@@ -138,27 +138,27 @@ for blur_kernel in gaussian_kernel_sizes:
                         
                         # for idx, result in enumerate(results):
                         idx += 1
-                        cv2.imwrite(f"./results/result_{idx}.jpg", result_row)#annotated_row)
+                        # cv2.imwrite(f"./results/result_{idx}.jpg", result_row)#annotated_row)
                         # cv2.imwrite(f"result_{idx}.jpg", annotated_row)
                         # row_images.append(annotated_row)
                         
                         # exit()
                         
-                        # comparing_edges_eroded = cv2.putText(
-                        #     edges_eroded.copy(),
-                        #     f"ID: {idx}",
-                        #     (10, 100),
-                        #     cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
-                        # )
-                        # row_images.append(comparing_edges_eroded)
+                        comparing_edges_eroded = cv2.putText(
+                            edges_eroded.copy(),
+                            f"ID: {idx}",
+                            (10, 100),
+                            cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8, cv2.LINE_AA
+                        )
+                        row_images.append(comparing_edges_eroded)
                         
-                        # # Create rows of images (e.g., 4 rows in the final grid)
-                        # if len(row_images) == 9:
-                        #     results.append(cv2.hconcat(row_images))
-                        #     row_images = []
+                        # Create rows of images (e.g., 4 rows in the final grid)
+                        if len(row_images) == 9:
+                            results.append(cv2.hconcat(row_images))
+                            row_images = []
 
-                        # if len(results) == 9:
-                        #     final_result = cv2.vconcat(results)
-                        #     cv2.imwrite(f"./results/final_result_batch_{fidx}.jpg", final_result)
-                        #     fidx += 1
-                        #     results = []
+                        if len(results) == 9:
+                            final_result = cv2.vconcat(results)
+                            cv2.imwrite(f"./results/final_result_batch_{fidx}.jpg", final_result)
+                            fidx += 1
+                            results = []
