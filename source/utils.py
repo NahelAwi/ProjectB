@@ -6,6 +6,18 @@ import blobconverter
 from pathlib import Path
 import time
 import argparse
+from sklearn.decomposition import PCA
+import torch
+import torch.nn as nn
+from hed_net import *
+import os
+import torch.optim as optim
+import getopt
+import PIL
+import PIL.Image
+import sys
+import matplotlib.pyplot as plt
+import torchvision.transforms as T
 
 # # Function to create DepthAI pipeline for RGB and depth streams
 # def create_pipeline():
@@ -152,3 +164,152 @@ def calculate_pca_rotation_angle(keypoints):
         angle_degrees += 180
 
     return angle_degrees, centroid
+
+
+def get_rotation_angle_using_hough_lines(edge_image):
+    # Step 1: Ensure binary image by thresholding if necessary
+    _, binary_image = cv2.threshold(edge_image, 127, 255, cv2.THRESH_BINARY)
+
+    # Step 2: Detect lines using Hough Line Transform
+    lines = cv2.HoughLines(binary_image, rho=1, theta=np.pi/180, threshold=100)
+
+    if lines is None:
+        print("No lines detected.")
+        return None
+
+    # Step 3: Calculate angles of detected lines
+    angles = []
+    for line in lines:
+        rho, theta = line[0]
+        angle = np.rad2deg(theta) - 90  # Convert from radians and adjust to typical rotation angle
+        angles.append(angle)
+
+    # Step 4: Calculate the median angle as the overall rotation angle
+    rotation_angle = np.median(angles)
+    return rotation_angle
+
+def calculate_pca_rotation_angle_from_edge_image(edge_image):
+    # Extract edge points from the final isolated edges image
+    edge_points = np.column_stack(np.where(edge_image > 0))
+    
+    if len(edge_points) == 0:
+        return None, None, None
+
+    # Apply PCA to find the primary orientation
+    pca = PCA(n_components=2)
+    pca.fit(edge_points)
+
+    # The principal component gives the orientation
+    angle_pca = np.arctan2(pca.components_[0, 1], pca.components_[0, 0]) * 180 / np.pi  # Convert to degrees
+
+    # Ensure the angle is within [-90,90] degrees
+    angle_pca = angle_pca if angle_pca >= 0 else angle_pca + 180
+    angle_pca = angle_pca if angle_pca <= 90 else angle_pca - 180
+
+    center_x, center_y = pca.mean_
+
+    return center_x, center_y, angle_pca
+
+netNetwork = None
+def estimate(hed_input):
+    global netNetwork
+
+    if netNetwork is None:
+        netNetwork = HedNetwork().eval()
+        netNetwork = torch.jit.script(netNetwork)
+
+    intWidth = hed_input.shape[2]
+    intHeight = hed_input.shape[1]
+
+    # assert(intWidth == 480) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
+    # assert(intHeight == 320) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
+    with torch.no_grad():
+        return netNetwork(hed_input.view(1, 3, intHeight, intWidth))[0, :, :, :].cpu()
+
+torch.set_grad_enabled(False)
+torch.backends.cudnn.enabled = True
+
+def process_frame(img_in):
+    
+    hed_input = torch.FloatTensor(
+        np.ascontiguousarray(
+            img_in[:, :, ::-1].transpose(2, 0, 1).astype(np.float32) * (1.0 / 255.0)
+        )
+    )
+    
+    hed_output = estimate(hed_input)
+
+    hed_output = (hed_output.clip(0.0, 1.0).numpy().transpose(1, 2, 0)[:, :, 0] * 255.0).astype(np.uint8)
+
+    # Use contour detection to locate the central object without relying on segmentation
+    # Apply Gaussian Blur to smooth the image and reduce noise
+    blurred_image = cv2.GaussianBlur(hed_output, (5, 5), 0)
+
+    # Detect edges using Canny Edge Detector
+    canny_edges = cv2.Canny(blurred_image, 50, 150)
+
+    # Find contours in the edge-detected image
+    contours, _ = cv2.findContours(canny_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Define center region for the cube (based on location in the initial image)
+    width = hed_output.shape[1]
+    height = hed_output.shape[0]
+        
+    center_x, center_y = width // 2, height // 2
+    center_region_radius = min(width, height) // 5
+
+    # Filter contours based on proximity to center
+    filtered_contours = []
+    for cnt in contours:
+        # Get the center of each contour
+        M = cv2.moments(cnt)
+        if M["m00"] != 0:
+            cx = int(M["m10"] / M["m00"])
+            cy = int(M["m01"] / M["m00"])
+            # Check if the contour center is within the central region
+            if abs(cx - center_x) < center_region_radius and abs(cy - center_y) < center_region_radius:
+                filtered_contours.append(cnt)
+
+    # Create an empty mask to draw filtered contours
+    contour_mask = np.zeros_like(hed_output)
+    cv2.drawContours(contour_mask, filtered_contours, -1, (255), thickness=cv2.FILLED)
+
+    # Combine the contour mask with the original edges to isolate the "main" object
+    isolated_edges = cv2.bitwise_and(hed_output, contour_mask)
+
+    center_x, center_y, angle = calculate_pca_rotation_angle_from_edge_image(isolated_edges)
+    if angle is None:
+        return
+
+    # Draw the orientation arrow
+    arrow_length = 50
+    end_x = int(center_x - arrow_length * np.cos(np.deg2rad(angle)))
+    end_y = int(center_y - arrow_length * np.sin(np.deg2rad(angle)))
+
+    output_image = cv2.cvtColor(isolated_edges, cv2.COLOR_GRAY2RGB)
+    cv2.arrowedLine(output_image, (int(center_y), int(center_x)), (end_y, end_x), (0, 255, 0), 2, tipLength=0.3)
+
+    # Display the refined result
+    # fig, ax = plt.subplots(1, 3, figsize=(12, 6))
+    # plt.imshow(hed_output, cmap='gray')
+    # plt.title("Original Edge Detected Image")
+    # plt.axis('off')
+
+    # plt.imshow(isolated_edges, cmap='gray')
+    # plt.title("Contour-Based Isolation")
+    # plt.axis('off')
+    
+    # # Display the final image with orientation arrow
+    # plt.imshow(output_image, cmap='gray')
+    # plt.title("Object Orientation")
+    # plt.axis('off')
+
+    # plt.savefig(img_out, bbox_inches='tight', dpi=300)
+    # plt.show()
+    
+    cv2.imshow("Original Edge Detected Image", hed_output)
+    cv2.imshow("Contour-Based Isolation", isolated_edges)
+    cv2.imshow("Object Orientation", output_image)
+
+    print("angle = ", angle)    
+    
