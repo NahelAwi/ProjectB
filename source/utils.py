@@ -210,6 +210,28 @@ def calculate_pca_rotation_angle_from_edge_image(edge_image):
 
     return center_x, center_y, angle_pca
 
+def calculate_pca_rotation_angle_from_mask(mask):
+    # Extract edge points from the final isolated edges image
+    points = np.column_stack(np.where(mask == 1))
+    
+    if len(points) == 0:
+        return None, None, None
+
+    # Apply PCA to find the primary orientation
+    pca = PCA(n_components=2)
+    pca.fit(points)
+
+    # The principal component gives the orientation
+    angle_pca = np.arctan2(pca.components_[0, 1], pca.components_[0, 0]) * 180 / np.pi  # Convert to degrees
+
+    # Ensure the angle is within [-90,90] degrees
+    angle_pca = angle_pca if angle_pca >= 0 else angle_pca + 180
+    angle_pca = angle_pca if angle_pca <= 90 else angle_pca - 180
+
+    center_x, center_y = pca.mean_
+
+    return center_x, center_y, angle_pca
+
 netNetwork = None
 def estimate(hed_input):
     global netNetwork
