@@ -213,6 +213,9 @@ def calculate_pca_rotation_angle_from_edge_image(edge_image):
 def calculate_pca_rotation_angle_from_mask(mask):
     # Extract edge points from the final isolated edges image
     points = np.column_stack(np.where(mask == 1))
+    return calculate_pca_rotation_angle_from_points(points)
+
+def calculate_pca_rotation_angle_from_points(points):
     
     if len(points) == 0:
         return None, None, None
