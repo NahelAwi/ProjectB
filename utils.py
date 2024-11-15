@@ -20,39 +20,57 @@ import matplotlib.pyplot as plt
 import torchvision.transforms as T
 
 # # Function to create DepthAI pipeline for RGB and depth streams
-# def create_pipeline():
-#     pipeline = dai.Pipeline()
+def create_pipeline():
+    pipeline = dai.Pipeline()
 
-#     # RGB Camera
-#     cam_rgb = pipeline.create(dai.node.ColorCamera)
-#     cam_rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
-#     cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-#     cam_rgb.setInterleaved(False)
-#     cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+    rgb_cam = pipeline.create(dai.node.ColorCamera)
+    rgb_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+    # rgb_cam = pipeline.createColorCamera()
+    # rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+    rgb_cam.setInterleaved(False)
+    rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+    rgb_cam.setPreviewSize(640,480)
+    rgb_cam.setPreviewKeepAspectRatio(False)
+    # rgb_cam.setFps(FPS)
 
-#     # Depth Camera (Stereo pair)
-#     mono_left = pipeline.create(dai.node.MonoCamera)
-#     mono_right = pipeline.create(dai.node.MonoCamera)
-#     stereo = pipeline.create(dai.node.StereoDepth)
+    # Create outputs
+    rgb_output = pipeline.create(dai.node.XLinkOut)
+    rgb_output.setStreamName("rgb")
 
-#     mono_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
-#     mono_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+    # Link nodes
+    rgb_cam.preview.link(rgb_output.input)
 
-#     stereo.setLeftRightCheck(True)
-#     stereo.setExtendedDisparity(False)
-#     stereo.setSubpixel(True)
 
-#     # Linking
-#     cam_rgb_out = pipeline.createXLinkOut()
-#     depth_out = pipeline.createXLinkOut()
+    # RGB Camera
+    # cam_rgb = pipeline.create(dai.node.ColorCamera)
+    # cam_rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
+    # cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+    # cam_rgb.setInterleaved(False)
+    # cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
 
-#     cam_rgb_out.setStreamName("rgb")
-#     depth_out.setStreamName("depth")
+    # # Depth Camera (Stereo pair)
+    # mono_left = pipeline.create(dai.node.MonoCamera)
+    # mono_right = pipeline.create(dai.node.MonoCamera)
+    # stereo = pipeline.create(dai.node.StereoDepth)
 
-#     cam_rgb.video.link(cam_rgb_out.input)
-#     stereo.depth.link(depth_out.input)
+    # mono_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
+    # mono_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
 
-#     return pipeline
+    # stereo.setLeftRightCheck(True)
+    # stereo.setExtendedDisparity(False)
+    # stereo.setSubpixel(True)
+
+    # # Linking
+    # cam_rgb_out = pipeline.createXLinkOut()
+    # depth_out = pipeline.createXLinkOut()
+
+    # cam_rgb_out.setStreamName("rgb")
+    # depth_out.setStreamName("depth")
+
+    # cam_rgb.video.link(cam_rgb_out.input)
+    # stereo.depth.link(depth_out.input)
+
+    return pipeline
 
 labelMap = [
     "person",         "bicycle",    "car",           "motorbike",     "aeroplane",   "bus",           "train",
@@ -69,56 +87,56 @@ labelMap = [
     "teddy bear",     "hair drier", "toothbrush"
 ]
 
-def create_pipeline():
-    # Create a pipeline
-    pipeline = dai.Pipeline()
+# def create_pipeline():
+#     # Create a pipeline
+#     pipeline = dai.Pipeline()
 
-    # Define sources and outputs
-    cam_rgb = pipeline.create(dai.node.ColorCamera)
-    detectionNetwork = pipeline.create(dai.node.YoloDetectionNetwork)
-    xout_rgb = pipeline.create(dai.node.XLinkOut)
-    xout_nn = pipeline.create(dai.node.XLinkOut)
+#     # Define sources and outputs
+#     cam_rgb = pipeline.create(dai.node.ColorCamera)
+#     detectionNetwork = pipeline.create(dai.node.YoloDetectionNetwork)
+#     xout_rgb = pipeline.create(dai.node.XLinkOut)
+#     xout_nn = pipeline.create(dai.node.XLinkOut)
 
-    xout_rgb.setStreamName("rgb")
-    xout_nn.setStreamName("detectionNetwork")
+#     xout_rgb.setStreamName("rgb")
+#     xout_nn.setStreamName("detectionNetwork")
 
-    # Configure camera properties
-    cam_rgb.setPreviewSize(416, 416)  # Input size for the model
-    cam_rgb.setInterleaved(False)
-    cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
-    cam_rgb.setFps(30)
+#     # Configure camera properties
+#     cam_rgb.setPreviewSize(416, 416)  # Input size for the model
+#     cam_rgb.setInterleaved(False)
+#     cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+#     cam_rgb.setFps(30)
 
-    # This will automatically download the blob and return the path to it
-    blob_path = blobconverter.from_zoo(name="yolo-v3-tiny-tf", shaves=6)
-    print(f"Blob path: {blob_path}")
+#     # This will automatically download the blob and return the path to it
+#     blob_path = blobconverter.from_zoo(name="yolo-v3-tiny-tf", shaves=6)
+#     print(f"Blob path: {blob_path}")
 
-    # Set model path
-    detectionNetwork.setBlobPath(blob_path)
-    detectionNetwork.input.setBlocking(False)
-    detectionNetwork.input.setQueueSize(1)
-    # Network specific settings
-    detectionNetwork.setConfidenceThreshold(0.5)
-    detectionNetwork.setNumClasses(80)
-    detectionNetwork.setCoordinateSize(4)
-    detectionNetwork.setAnchors([10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326])
+#     # Set model path
+#     detectionNetwork.setBlobPath(blob_path)
+#     detectionNetwork.input.setBlocking(False)
+#     detectionNetwork.input.setQueueSize(1)
+#     # Network specific settings
+#     detectionNetwork.setConfidenceThreshold(0.5)
+#     detectionNetwork.setNumClasses(80)
+#     detectionNetwork.setCoordinateSize(4)
+#     detectionNetwork.setAnchors([10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326])
 
-    detectionNetwork.setAnchorMasks({
-        "side52": [0, 1, 2],  # Small objects
-        "side26": [3, 4, 5],  # Medium objects
-        "side13": [6, 7, 8]   # Large objects
-    })
+#     detectionNetwork.setAnchorMasks({
+#         "side52": [0, 1, 2],  # Small objects
+#         "side26": [3, 4, 5],  # Medium objects
+#         "side13": [6, 7, 8]   # Large objects
+#     })
 
-    detectionNetwork.setIouThreshold(0.5)
-    detectionNetwork.setNumInferenceThreads(2)
+#     detectionNetwork.setIouThreshold(0.5)
+#     detectionNetwork.setNumInferenceThreads(2)
 
 
-    # Linking
-    cam_rgb.preview.link(detectionNetwork.input)
-    # detectionNetwork.passthrough.link(xout_rgb.input)
-    cam_rgb.preview.link(xout_rgb.input)
-    detectionNetwork.out.link(xout_nn.input)
+#     # Linking
+#     cam_rgb.preview.link(detectionNetwork.input)
+#     # detectionNetwork.passthrough.link(xout_rgb.input)
+#     cam_rgb.preview.link(xout_rgb.input)
+#     detectionNetwork.out.link(xout_nn.input)
     
-    return pipeline
+#     return pipeline
 
 
 def frameNorm(frame, bbox):
@@ -254,7 +272,7 @@ def estimate(hed_input):
 torch.set_grad_enabled(False)
 torch.backends.cudnn.enabled = True
 
-def process_frame(img_in):
+def Edge_process_frame(img_in):
     
     hed_input = torch.FloatTensor(
         np.ascontiguousarray(

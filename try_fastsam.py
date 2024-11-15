@@ -3,7 +3,7 @@ import cv2
 import torch
 import numpy as np
 import sys
-from source.utils import *
+from utils import *
 
 def process_frame(frame_rgb):
     frame_resized = cv2.resize(frame_rgb, (width, height)) / 255.0  # Normalize to [0, 1]
@@ -25,7 +25,7 @@ def process_frame(frame_rgb):
         return frame_rgb
     best_mask = best_result.masks.data[0]
     segmentation = (best_mask.cpu().numpy() * 255).astype(np.uint8)
-    overlay = cv2.addWeighted(frame, 0.7, cv2.cvtColor(segmentation, cv2.COLOR_GRAY2BGR), 0.3, 0)
+    overlay = cv2.addWeighted(frame_rgb, 0.7, cv2.cvtColor(segmentation, cv2.COLOR_GRAY2BGR), 0.3, 0)
     processed_frame = overlay
 
     # Calculate orientation and draw arrow if valid
@@ -35,6 +35,7 @@ def process_frame(frame_rgb):
         end_x = int(center_x - arrow_length * np.cos(np.deg2rad(angle)))
         end_y = int(center_y - arrow_length * np.sin(np.deg2rad(angle)))
         cv2.arrowedLine(processed_frame, (int(center_y), int(center_x)), (end_y, end_x), (0, 255, 0), 2, tipLength=0.3)
+        print("angle = ", angle)
     return processed_frame
 
 # Load the FastSAM model
@@ -55,22 +56,31 @@ all_points = np.vstack([[center_x, center_y], circle_points])
 labels = np.ones(all_points.shape[0], dtype=np.int32)
 
 # Optical flow variables
-cap = cv2.VideoCapture(0)
+# cap = cv2.VideoCapture(0)
 
-try:
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
+pipeline = create_pipeline()
 
-        # Pre-process the frame
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+with dai.Device(pipeline) as devicex:
+    rgb_queue = devicex.getOutputQueue(name="rgb", maxSize=4, blocking=False)
+    # depth_queue = device.getOutputQueue(name="depth", maxSize=4, blocking=False)
 
-        processed_frame = process_frame(frame_rgb)
-        cv2.imshow("Real-Time Segmentation", processed_frame)
+    try:
+        while True:
+            # ret, frame = cap.read()
+            ret = rgb_queue.get()
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-finally:
-    cap.release()
-    cv2.destroyAllWindows()
+            frame = None
+            if ret:
+                frame = ret.getCvFrame()
+
+            # Pre-process the frame
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            processed_frame = process_frame(frame_rgb)
+            cv2.imshow("Real-Time Segmentation", processed_frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    finally:
+        # cap.release()
+        cv2.destroyAllWindows()

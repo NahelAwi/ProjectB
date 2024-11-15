@@ -1,4 +1,4 @@
-from source.utils import *
+from utils import *
 
 # Open webcam
 cap = cv2.VideoCapture(0)
@@ -15,7 +15,7 @@ try:
         if not ret:
             break
 
-        process_frame(frame)
+        Edge_process_frame(frame)
         # cv2.imshow("Real-Time Edge Detection", processed_frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
