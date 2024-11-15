@@ -9,7 +9,7 @@ import argparse
 from sklearn.decomposition import PCA
 import torch
 import torch.nn as nn
-from hed_net import *
+from NaiveWay.hed_net import *
 import os
 import torch.optim as optim
 import getopt
@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import torchvision.transforms as T
 
 # # Function to create DepthAI pipeline for RGB and depth streams
-def create_pipeline():
+def create_RGB_pipeline():
     pipeline = dai.Pipeline()
 
     rgb_cam = pipeline.create(dai.node.ColorCamera)
@@ -29,7 +29,7 @@ def create_pipeline():
     # rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
     rgb_cam.setInterleaved(False)
     rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-    rgb_cam.setPreviewSize(640,480)
+    rgb_cam.setPreviewSize(320,320)
     rgb_cam.setPreviewKeepAspectRatio(False)
     # rgb_cam.setFps(FPS)
 
@@ -39,36 +39,6 @@ def create_pipeline():
 
     # Link nodes
     rgb_cam.preview.link(rgb_output.input)
-
-
-    # RGB Camera
-    # cam_rgb = pipeline.create(dai.node.ColorCamera)
-    # cam_rgb.setBoardSocket(dai.CameraBoardSocket.RGB)
-    # cam_rgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-    # cam_rgb.setInterleaved(False)
-    # cam_rgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
-
-    # # Depth Camera (Stereo pair)
-    # mono_left = pipeline.create(dai.node.MonoCamera)
-    # mono_right = pipeline.create(dai.node.MonoCamera)
-    # stereo = pipeline.create(dai.node.StereoDepth)
-
-    # mono_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
-    # mono_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-
-    # stereo.setLeftRightCheck(True)
-    # stereo.setExtendedDisparity(False)
-    # stereo.setSubpixel(True)
-
-    # # Linking
-    # cam_rgb_out = pipeline.createXLinkOut()
-    # depth_out = pipeline.createXLinkOut()
-
-    # cam_rgb_out.setStreamName("rgb")
-    # depth_out.setStreamName("depth")
-
-    # cam_rgb.video.link(cam_rgb_out.input)
-    # stereo.depth.link(depth_out.input)
 
     return pipeline
 
@@ -138,6 +108,60 @@ labelMap = [
     
 #     return pipeline
 
+def create_RGB_Depth_pipeline():
+    pipeline = dai.Pipeline()
+
+    # Create RGB camera node
+    rgb_cam = pipeline.create(dai.node.ColorCamera)
+    rgb_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
+    rgb_cam.setInterleaved(False)
+    rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+    rgb_cam.setPreviewSize(640,480)
+    rgb_cam.setPreviewKeepAspectRatio(False)
+    # rgb_cam.setFps(FPS)
+
+    # Create outputs
+    rgb_output = pipeline.create(dai.node.XLinkOut)
+    rgb_output.setStreamName("rgb")
+
+    # Link nodes
+    rgb_cam.preview.link(rgb_output.input)
+
+
+    # Set up stereo depth
+    mono_left = pipeline.create(dai.node.MonoCamera)
+    mono_right = pipeline.create(dai.node.MonoCamera)
+
+    mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_480_P)
+    mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_480_P)
+
+    mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
+    mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
+
+    stereo = pipeline.create(dai.node.StereoDepth)
+    stereo.initialConfig.setConfidenceThreshold(200)
+    stereo.setRectifyEdgeFillColor(0)  # Black, to better see the cutout
+    stereo.setExtendedDisparity(True)
+    stereo.setSubpixel(True)  # Enable subpixel precision for finer depth
+    stereo.initialConfig.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_3x3)
+    stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
+    stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
+
+    # Link mono cameras to stereo node
+    mono_left.out.link(stereo.left)
+    mono_right.out.link(stereo.right)
+
+    # Create depth output
+    xout_depth = pipeline.create(dai.node.XLinkOut)
+    xout_depth.setStreamName("depth")
+    stereo.depth.link(xout_depth.input)
+
+    # Enable infrared (IR) projector for better depth perception
+    # ir_led = pipeline.create(dai.node.LED)
+    # ir_led.setBoardSocket(dai.CameraBoardSocket.AUTO)  # Control the IR LED automatically
+    # ir_led.setBrightness(100)  # Set brightness level (0-100)
+
+    return pipeline
 
 def frameNorm(frame, bbox):
     normVals = np.full(len(bbox), frame.shape[0])
