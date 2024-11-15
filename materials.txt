@@ -13,3 +13,9 @@ https://blog.roboflow.com/object-alignment/
 
 HED edge_detection paper
     chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://arxiv.org/pdf/1504.06375v2
+
+cv2.findcontour:
+    https://docs.opencv.org/3.4/d3/dc0/group__imgproc__shape.html#ga17ed9f5d79ae97bd4c7cf18403e1689a
+
+cv2.contours:
+    https://docs.opencv.org/3.4/d4/d73/tutorial_py_contours_begin.html
