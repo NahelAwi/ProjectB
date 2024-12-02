@@ -132,20 +132,21 @@ def create_RGB_Depth_pipeline():
     mono_left = pipeline.create(dai.node.MonoCamera)
     mono_right = pipeline.create(dai.node.MonoCamera)
 
-    mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_480_P)
-    mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_480_P)
+    mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
+    mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
 
     mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
     mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
 
+
     stereo = pipeline.create(dai.node.StereoDepth)
-    stereo.initialConfig.setConfidenceThreshold(200)
+    stereo.initialConfig.setConfidenceThreshold(240)
     stereo.setRectifyEdgeFillColor(0)  # Black, to better see the cutout
     stereo.setExtendedDisparity(True)
     stereo.setSubpixel(True)  # Enable subpixel precision for finer depth
-    stereo.initialConfig.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_3x3)
-    stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
-    stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
+    stereo.initialConfig.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_7x7)
+    # stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
+    # stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
 
     # Link mono cameras to stereo node
     mono_left.out.link(stereo.left)
@@ -155,6 +156,16 @@ def create_RGB_Depth_pipeline():
     xout_depth = pipeline.create(dai.node.XLinkOut)
     xout_depth.setStreamName("depth")
     stereo.depth.link(xout_depth.input)
+
+
+    # xout_left = pipeline.create(dai.node.XLinkOut)
+    # xout_left.setStreamName("left")
+    # xout_right = pipeline.create(dai.node.XLinkOut)
+    # xout_right.setStreamName("right")
+
+    # # Attach cameras to output Xlink
+    # mono_left.out.link(xout_left.input)
+    # mono_right.out.link(xout_right.input)
 
     # Enable infrared (IR) projector for better depth perception
     # ir_led = pipeline.create(dai.node.LED)
