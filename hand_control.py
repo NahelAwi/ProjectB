@@ -29,7 +29,7 @@ def rotate_hand(time_units, direction, torque=0):
     motors_mask |= (1 << 7)
 
     # Create the command
-    command = create_command(torque, time_units, motors, directions)
+    command = create_command(torque, time_units, motors_mask, directions_mask)
     
     return command
 
@@ -47,8 +47,8 @@ def rotate_hand(time_units, direction, torque=0):
 #     print("Error: not found!")
 #     exit(-1)
 
-RPM = 30
-angular_v = 30*360/60
+RPM = 10
+angular_v = RPM*360/60
 angular_v_in_ms = angular_v / 1000
 
 async def rotate():
@@ -65,6 +65,8 @@ async def rotate():
                 await client.write_gatt_char(CHARACTERISTIC_UUID, command)  # does this wait for the whole rotation to happen ? if not, do the wait below (in the sleep)
                 print(f"Sent command: {command}")
                 await asyncio.sleep(0.5)    # sleep for the calculated time above ?
+                break
+                
         else:
             print(f"Failed to connect to {DEVICE_ADDRESS}")
 
