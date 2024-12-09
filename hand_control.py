@@ -1,4 +1,6 @@
 import asyncio
+import random
+import math
 from bleak import BleakClient, BleakScanner
 
 # Replace with your device's MAC address
@@ -47,28 +49,35 @@ def rotate_hand(time_units, direction, torque=0):
 #     print("Error: not found!")
 #     exit(-1)
 
-RPM = 10
-angular_v = RPM*360/60
-angular_v_in_ms = angular_v / 1000
-
-async def rotate():
-    angle = 45
-    direction = (angle >= 0)    # or the opposite ?
-    rotation_time_in_ms = (angle / angular_v_in_ms)
-    time_units = int(rotation_time_in_ms / 50)  # Convert to time units (50ms per unit)
+async def rotate(queue):
+    RPM = 10
+    angular_v = RPM*360/60
+    angular_v_in_ms = angular_v / 1000
 
     async with BleakClient(DEVICE_ADDRESS) as client:
         if client.is_connected:
             print(f"Connected to {DEVICE_ADDRESS}")
             while True:
+                # angle = random.randint(-90, 90)
+                angle = queue.get()
+                if angle is None:
+                    print("unexpected behaviour - angle shouldn't return None - as queue.get() is blocking")
+                    exit(-99)
+                if angle == 0:
+                    continue
+                direction = 1 if (angle >= 0) else 0    # or the opposite ?
+                angle = abs(angle)
+                rotation_time_in_ms = (angle / angular_v_in_ms)
+                time_units = int(rotation_time_in_ms / 50)  # Convert to time units (50ms per unit)
+
                 command = rotate_hand(time_units, direction)
                 await client.write_gatt_char(CHARACTERISTIC_UUID, command)  # does this wait for the whole rotation to happen ? if not, do the wait below (in the sleep)
                 print(f"Sent command: {command}")
-                await asyncio.sleep(0.5)    # sleep for the calculated time above ?
-                break
-                
+                await asyncio.sleep(rotation_time_in_ms/1000)    # sleep for the calculated time above ?
+                # await asyncio.sleep(2)
         else:
             print(f"Failed to connect to {DEVICE_ADDRESS}")
 
 
-asyncio.run(rotate())
+def hand_control_thread(queue):
+    asyncio.run(rotate(queue))
