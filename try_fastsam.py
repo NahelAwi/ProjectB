@@ -1,36 +1,38 @@
-from ultralytics import FastSAM
+# from ultralytics import FastSAM
+from ultralytics.models.fastsam.model import FastSAM
 import cv2
 import torch
 import numpy as np
 import sys
+from torch.cuda.amp import GradScaler, autocast
 from utils import *
 
-height = 480
-width = 640
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+# device = "cpu"
+print("device = ", device)
 
 # Load the FastSAM model
 model_path = "FastSAM-s.pt"  # or FastSAM-x.pt
-model = FastSAM(model_path).to(device)
+print("initializing model ...")
+model = FastSAM(model_path).to(device).eval()
+print("done")
 
 # Define the prompt (points and labels)
 center_x, center_y = width // 2, height // 2
-radius = 40
-num_points = 40
+radius = 10
+num_points = 10
 angles = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
-circle_points = np.array([[int(center_x + radius * np.cos(angle)), int(center_y + radius * np.sin(angle))] for angle in angles])
+circle_points = np.array([[int(center_x - radius * np.sin(angle)), int(center_y - radius * np.cos(angle))] for angle in angles])
 all_points = np.vstack([[center_x, center_y], circle_points])
 labels = np.ones(all_points.shape[0], dtype=np.int32)
 
-# Optical flow variables
-# cap = cv2.VideoCapture(0)
-    
+
 def Calculate_Depth(depth_frame):
     # Retrieve only the center depth value
     center_x = width // 2
     center_y = height // 2
 
-    kernel_size = 30  # Adjust the size of the window
+    kernel_size = 40  # Adjust the size of the window
     start_x = center_x - kernel_size // 2
     start_y = center_y - kernel_size // 2
 
@@ -52,8 +54,12 @@ def process_frame(frame_rgb):
     try:
         # Run inference with points prompt
         with torch.no_grad():
-            results = model(input_tensor, points=all_points, labels=labels)
-    except:
+            with autocast():
+                print("start inference")
+                results = model(input_tensor, points=all_points, labels=labels)
+                print("done inference")
+    except Exception as e:
+        print(f"Inference failed with error: {e}")
         return frame_rgb, None
 
     if not (results and len(results) > 0):
@@ -74,6 +80,9 @@ def process_frame(frame_rgb):
         arrow_length = 50
         end_x = int(center_x - arrow_length * np.cos(np.deg2rad(angle)))
         end_y = int(center_y - arrow_length * np.sin(np.deg2rad(angle)))
+        for point in circle_points:
+            y,x = point
+            cv2.circle(processed_frame, (x,y), radius=3, color=(0,255,0), thickness=-1)
         cv2.arrowedLine(processed_frame, (int(center_y), int(center_x)), (end_y, end_x), (0, 255, 0), 2, tipLength=0.3)
         print("angle = ", angle)
     return processed_frame, angle

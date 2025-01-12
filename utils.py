@@ -1,23 +1,15 @@
 import depthai as dai
 import cv2
 import numpy as np
-import math
-import blobconverter
-from pathlib import Path
-import time
-import argparse
 from sklearn.decomposition import PCA
 import torch
 import torch.nn as nn
-from NaiveWay.hed_net import *
 import os
-import torch.optim as optim
-import getopt
-import PIL
-import PIL.Image
 import sys
 import matplotlib.pyplot as plt
-import torchvision.transforms as T
+
+width = 320
+height = 256
 
 # # Function to create DepthAI pipeline for RGB and depth streams
 def create_RGB_pipeline():
@@ -28,8 +20,8 @@ def create_RGB_pipeline():
     # rgb_cam = pipeline.createColorCamera()
     # rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
     rgb_cam.setInterleaved(False)
-    rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-    rgb_cam.setPreviewSize(320,320)
+    rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_400_P)
+    rgb_cam.setPreviewSize(width,height)
     rgb_cam.setPreviewKeepAspectRatio(False)
     # rgb_cam.setFps(FPS)
 
@@ -116,7 +108,7 @@ def create_RGB_Depth_pipeline():
     rgb_cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
     rgb_cam.setInterleaved(False)
     rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-    rgb_cam.setPreviewSize(640,480)
+    rgb_cam.setPreviewSize(width,height)
     rgb_cam.setPreviewKeepAspectRatio(False)
     # rgb_cam.setFps(FPS)
 
@@ -132,8 +124,8 @@ def create_RGB_Depth_pipeline():
     mono_left = pipeline.create(dai.node.MonoCamera)
     mono_right = pipeline.create(dai.node.MonoCamera)
 
-    mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
-    mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_720_P)
+    mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+    mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
 
     mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
     mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
@@ -264,130 +256,43 @@ def calculate_pca_rotation_angle_from_edge_image(edge_image):
     return center_x, center_y, angle_pca
 
 def calculate_pca_rotation_angle_from_mask(mask):
-    # Extract edge points from the final isolated edges image
-    points = np.column_stack(np.where(mask == 1))
+    """
+    Calculate PCA rotation angle from a mask using PyTorch tensors.
+    Assumes mask is a binary tensor (1 for edges, 0 for background).
+    """
+    # Extract edge points from the mask (coordinates where mask == 1)
+    points = torch.nonzero(mask == 1, as_tuple=False).float()
     return calculate_pca_rotation_angle_from_points(points)
 
 def calculate_pca_rotation_angle_from_points(points):
-    
-    if len(points) == 0:
+    """
+    Calculate PCA rotation angle from a set of points using PyTorch tensors.
+    """
+    if points.size(0) == 0:  # Check if there are no points
         return None, None, None
 
-    # Apply PCA to find the primary orientation
-    pca = PCA(n_components=2)
-    pca.fit(points)
+    # Compute the mean of the points
+    mean = points.mean(dim=0)
+    centered_points = points - mean
 
-    # The principal component gives the orientation
-    angle_pca = np.arctan2(pca.components_[0, 1], pca.components_[0, 0]) * 180 / np.pi  # Convert to degrees
+    # Compute the covariance matrix
+    cov_matrix = centered_points.T @ centered_points / (points.size(0) - 1)
 
-    # Ensure the angle is within [-90,90] degrees
-    angle_pca = angle_pca if angle_pca >= 0 else angle_pca + 180
-    angle_pca = angle_pca if angle_pca <= 90 else angle_pca - 180
+    # Perform eigen decomposition of the covariance matrix
+    eigenvalues, eigenvectors = torch.linalg.eigh(cov_matrix)
 
-    center_x, center_y = pca.mean_
+    # The principal component is the eigenvector with the largest eigenvalue
+    principal_component = eigenvectors[:, -1]  # Last column corresponds to the largest eigenvalue
 
-    return center_x, center_y, angle_pca
+    # Calculate the angle of the principal component
+    angle_pca = torch.atan2(principal_component[1], principal_component[0]) * 180 / torch.pi  # Convert to degrees
 
-netNetwork = None
-def estimate(hed_input):
-    global netNetwork
+    # Ensure the angle is within [-90, 90] degrees
+    if angle_pca < 0:
+        angle_pca += 180
+    if angle_pca > 90:
+        angle_pca -= 180
 
-    if netNetwork is None:
-        netNetwork = HedNetwork().eval()
-        netNetwork = torch.jit.script(netNetwork)
+    center_x, center_y = mean.tolist()
 
-    intWidth = hed_input.shape[2]
-    intHeight = hed_input.shape[1]
-
-    # assert(intWidth == 480) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
-    # assert(intHeight == 320) # remember that there is no guarantee for correctness, comment this line out if you acknowledge this and want to continue
-    with torch.no_grad():
-        return netNetwork(hed_input.view(1, 3, intHeight, intWidth))[0, :, :, :].cpu()
-
-torch.set_grad_enabled(False)
-torch.backends.cudnn.enabled = True
-
-def Edge_process_frame(img_in):
-    
-    hed_input = torch.FloatTensor(
-        np.ascontiguousarray(
-            img_in[:, :, ::-1].transpose(2, 0, 1).astype(np.float32) * (1.0 / 255.0)
-        )
-    )
-    
-    hed_output = estimate(hed_input)
-
-    hed_output = (hed_output.clip(0.0, 1.0).numpy().transpose(1, 2, 0)[:, :, 0] * 255.0).astype(np.uint8)
-
-    # Use contour detection to locate the central object without relying on segmentation
-    # Apply Gaussian Blur to smooth the image and reduce noise
-    blurred_image = cv2.GaussianBlur(hed_output, (5, 5), 0)
-
-    # Detect edges using Canny Edge Detector
-    canny_edges = cv2.Canny(blurred_image, 50, 150)
-
-    # Find contours in the edge-detected image
-    contours, _ = cv2.findContours(canny_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Define center region for the cube (based on location in the initial image)
-    width = hed_output.shape[1]
-    height = hed_output.shape[0]
-        
-    center_x, center_y = width // 2, height // 2
-    center_region_radius = min(width, height) // 5
-
-    # Filter contours based on proximity to center
-    filtered_contours = []
-    for cnt in contours:
-        # Get the center of each contour
-        M = cv2.moments(cnt)
-        if M["m00"] != 0:
-            cx = int(M["m10"] / M["m00"])
-            cy = int(M["m01"] / M["m00"])
-            # Check if the contour center is within the central region
-            if abs(cx - center_x) < center_region_radius and abs(cy - center_y) < center_region_radius:
-                filtered_contours.append(cnt)
-
-    # Create an empty mask to draw filtered contours
-    contour_mask = np.zeros_like(hed_output)
-    cv2.drawContours(contour_mask, filtered_contours, -1, (255), thickness=cv2.FILLED)
-
-    # Combine the contour mask with the original edges to isolate the "main" object
-    isolated_edges = cv2.bitwise_and(hed_output, contour_mask)
-
-    center_x, center_y, angle = calculate_pca_rotation_angle_from_edge_image(isolated_edges)
-    if angle is None:
-        return
-
-    # Draw the orientation arrow
-    arrow_length = 50
-    end_x = int(center_x - arrow_length * np.cos(np.deg2rad(angle)))
-    end_y = int(center_y - arrow_length * np.sin(np.deg2rad(angle)))
-
-    output_image = cv2.cvtColor(isolated_edges, cv2.COLOR_GRAY2RGB)
-    cv2.arrowedLine(output_image, (int(center_y), int(center_x)), (end_y, end_x), (0, 255, 0), 2, tipLength=0.3)
-
-    # Display the refined result
-    # fig, ax = plt.subplots(1, 3, figsize=(12, 6))
-    # plt.imshow(hed_output, cmap='gray')
-    # plt.title("Original Edge Detected Image")
-    # plt.axis('off')
-
-    # plt.imshow(isolated_edges, cmap='gray')
-    # plt.title("Contour-Based Isolation")
-    # plt.axis('off')
-    
-    # # Display the final image with orientation arrow
-    # plt.imshow(output_image, cmap='gray')
-    # plt.title("Object Orientation")
-    # plt.axis('off')
-
-    # plt.savefig(img_out, bbox_inches='tight', dpi=300)
-    # plt.show()
-    
-    cv2.imshow("Original Edge Detected Image", hed_output)
-    cv2.imshow("Contour-Based Isolation", isolated_edges)
-    cv2.imshow("Object Orientation", output_image)
-
-    print("angle = ", angle)    
-    
+    return center_x, center_y, angle_pca.item()
