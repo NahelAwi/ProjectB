@@ -39,13 +39,18 @@ def Calculate_Depth(depth_frame):
     # Extract a small region around the center
     center_region = depth_frame[start_y:start_y + kernel_size, start_x:start_x + kernel_size]
 
-    # Apply median filtering to stabilize the depth value
-    # filtered_depth = cv2.medianBlur(center_region, 5)
+    # Flatten the region and filter out zero values
+    flattened_depths = center_region.flatten()
+    non_zero_depths = flattened_depths[flattened_depths > 0]
 
-    # Calculate the median depth in that region
-    center_depth_median = np.median(center_region)
+    # Sort the non-zero depths and take the 100 closest points
+    sorted_depths = np.sort(non_zero_depths)
+    closest_pixels = sorted_depths[:100]
 
-    return center_depth_median
+    # Calculate the mean depth in that region
+    center_depth_mean = np.mean(closest_pixels)
+
+    return center_depth_mean
 
 def process_frame(frame_rgb):
     frame_resized = cv2.resize(frame_rgb, (width, height)) / 255.0  # Normalize to [0, 1]
@@ -134,7 +139,7 @@ def calc_angle_thread(queue):
                     processed_frame = frame_rgb
                     
                 if angle:
-                    if abs(angle-old_angle) <= 2:#margin
+                    if abs(angle-old_angle) <= 5:#margin
                         angle = 0
                     else:
                         tmp = angle
