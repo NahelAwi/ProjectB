@@ -5,8 +5,6 @@ import numpy as np
 import sys
 from utils import *
 
-height = 480
-width = 640
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 pipeline = create_RGB_Depth_pipeline()
@@ -17,9 +15,9 @@ with dai.Device(pipeline) as devicex:
     
     while True:
         depth_frame = depth_queue.get().getFrame()  # Get the full depth frame
-        rgb_frame = cv2.cvtColor(rgb_queue.get().getCvFrame(), cv2.COLOR_BGR2RGB)
+        rgb_frame = rgb_queue.get().getCvFrame()
         
-        kernel_size = 50
+        kernel_size = 100
         # Retrieve the center coordinates of the frame
         # height, width = depth_frame.shape
         center_x = width // 2
@@ -41,7 +39,7 @@ with dai.Device(pipeline) as devicex:
 
         # Sort by depth and take the 100 closest points
         sorted_indices = np.argsort(non_zero_depths)
-        closest_indices = sorted_indices[:100]
+        closest_indices = sorted_indices[:min(len(sorted_indices), 200)]
         closest_depths = non_zero_depths[closest_indices]
         closest_coords = np.array([non_zero_coords[i] for i in closest_indices])
         
@@ -49,14 +47,14 @@ with dai.Device(pipeline) as devicex:
             all_points = np.vstack([[center_x, center_y], closest_coords])
 
         # Calculate the mean of the 50 closest pixels
-        depth = np.mean(closest_depths)
+        depth = np.median(closest_depths)
         points = closest_coords
         
         print("Depth:", depth)
 
         # Plot the points on the RGB frame
         for point in points:
-            y, x = point  # Extract coordinates
+            x,y = point  # Extract coordinates
             cv2.circle(rgb_frame, (x, y), radius=3, color=(0, 255, 0), thickness=-1)  # Draw points
         
         # Display the RGB frame with plotted points

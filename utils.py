@@ -138,7 +138,7 @@ def create_RGB_Depth_pipeline():
     stereo.setSubpixel(True)  # Enable subpixel precision for finer depth
     stereo.initialConfig.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_7x7)
     # stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
-    # stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
+    stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
 
     # Link mono cameras to stereo node
     mono_left.out.link(stereo.left)
