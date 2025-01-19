@@ -33,7 +33,7 @@ labels = np.ones(all_points.shape[0], dtype=np.int32)
 def Calculate_Depth(depth_frame):
     # Retrieve only the center depth value
 
-    kernel_size = 250  # Adjust the size of the window
+    kernel_size = 150  # Adjust the size of the window
     start_x = center_x - kernel_size // 2
     start_y = center_y - kernel_size // 2
 
@@ -61,7 +61,7 @@ def draw_mask(frame, masks):
 
     for i, mask in enumerate(masks):
         points = torch.nonzero(mask == 1, as_tuple=False)
-        print(f"mask_{i} size = ", points.size(0))
+        # print(f"mask_{i} size = ", points.size(0))
         if isinstance(mask, torch.Tensor):
             mask = mask.cpu().numpy()
 
@@ -117,12 +117,12 @@ def distance_to_center(mask):
         float: Distance score (higher for larger masks farther from the center).
     """
     # Get all nonzero points in the mask
-    coords = torch.nonzero(mask == 1, as_tuple=False)
+    coords = torch.nonzero(mask == 1, as_tuple=False).to(device)
     if coords.size(0) == 0:
         return 0  # No points in the mask, return 0
 
     # Calculate the Euclidean distance of each point to the center
-    distances = torch.norm(coords - torch.tensor((center_x, center_y), dtype=torch.float), dim=1)
+    distances = torch.norm(coords - torch.tensor((center_x, center_y), dtype=torch.float).to(device), dim=1)
 
     # Calculate the average distance
     avg_distance = distances.mean().item()
@@ -159,9 +159,9 @@ def calculate_mask_score(mask, index, weight_size=30, weight_compactness=10.0, w
     # Logarithmic scaling for size
     scaled_size = torch.log1p(size).item()  # log1p(x) = log(1 + x), avoids log(0)
     
-    print("size = ", scaled_size)
-    print("distance = ", distance)
-    print("compactness = ", compactness)
+    # print("size = ", scaled_size)
+    # print("distance = ", distance)
+    # print("compactness = ", compactness)
 
     # Normalize and combine scores
     score = (weight_size * scaled_size) - (weight_compactness * compactness) - (weight_distance * distance) - (index * weight_confidence)  # lower index has higher confidence
@@ -191,7 +191,7 @@ def process_frame(frame_rgb):
     masks = result.masks.data
     if len(masks) == 0:
         return frame_rgb, None
-    print("len(masks) = ", len(masks))
+    # print("len(masks) = ", len(masks))
     
     # Calculate scores and select the best mask
     scores = [calculate_mask_score(mask, index) for index, mask in enumerate(masks)]
