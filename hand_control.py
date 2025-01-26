@@ -4,7 +4,8 @@ import math
 from bleak import BleakClient, BleakScanner
 
 # Replace with your device's MAC address
-DEVICE_ADDRESS = "B8:D6:1A:43:60:52"
+# DEVICE_ADDRESS = "B8:D6:1A:43:60:52"
+DEVICE_ADDRESS = "B8:D6:1A:40:EF:D6"
 
 # UUIDs for the Direct Execute Service
 SERVICE_UUID = "e0198000-7544-42c1-0000-b24344b6aa70"
@@ -103,4 +104,7 @@ async def rotate(queue):
 
 
 def hand_control_thread(queue):
-    asyncio.run(rotate(queue))
+    #asyncio.run(rotate(queue))
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(rotate(queue))
+    loop.close()

@@ -11,47 +11,24 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # device = "cpu"
 print("device = ", device)
 
-# Load the FastSAM model
-model_path = "FastSAM-s.pt"  # or FastSAM-x.pt
-print("initializing model ...")
-model = FastSAM(model_path).to(device).eval()
-print("done")
-
-#possible optimizations:
-# 1- pick the segmentation mask in a "smarter" way to avoid segmrntation of : 1) background 2) small details in the object. --> for example take mask with middle size
-# 2- change fastsam num_points and radius and see how it affects small objects
+center_x, center_y = width // 2, height // 2
+model = None
 
 # Define the prompt (points and labels)
-center_x, center_y = width // 2, height // 2
-radius = 15
+radius = 20
 num_points = 30
 angles = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
 circle_points = np.array([[int(center_x - radius * np.cos(angle)), int(center_y - radius * np.sin(angle))] for angle in angles])
 all_points = np.vstack([[center_x, center_y], circle_points])
 labels = np.ones(all_points.shape[0], dtype=np.int32)
 
-def Calculate_Depth(depth_frame):
-    # Retrieve only the center depth value
-
-    kernel_size = 150  # Adjust the size of the window
-    start_x = center_x - kernel_size // 2
-    start_y = center_y - kernel_size // 2
-
-    # Extract a small region around the center
-    center_region = depth_frame[start_y:start_y + kernel_size, start_x:start_x + kernel_size]
-
-    # Flatten the region and filter out zero values
-    flattened_depths = center_region.flatten()
-    non_zero_depths = flattened_depths[flattened_depths > 0]
-
-    # Sort the non-zero depths and take the 200 closest points
-    sorted_depths = np.sort(non_zero_depths)
-    closest_pixels = sorted_depths[:min(len(sorted_depths), 200)]
-
-    # Calculate the median depth in that region
-    center_depth_median = np.median(closest_pixels)
-
-    return center_depth_median
+def init_fastsam():
+    global model
+    # Load the FastSAM model
+    model_path = "FastSAM-s.pt"  # or FastSAM-x.pt
+    print("initializing model ...")
+    model = FastSAM(model_path).to(device).eval()
+    print("done")
 
 def draw_mask(frame, masks):
     debug_frame = frame.copy()
@@ -219,71 +196,13 @@ def process_frame(frame_rgb):
         print("angle = ", angle)
     return processed_frame, angle
 
-def calc_angle_thread(queue):
-    pipeline = create_RGB_Depth_pipeline()
-    old_angle = 0
-    with dai.Device(pipeline) as devicex:
-        rgb_queue = devicex.getOutputQueue(name="rgb", maxSize=15, blocking=False)
-        depth_queue = devicex.getOutputQueue(name="depth", maxSize=15, blocking=False)
-        # left_queue = devicex.getOutputQueue(name="left")
-        # right_queue = devicex.getOutputQueue(name="right")
-        
+def calc_angle(depth, frame_rgb, old_angle):
 
-        try:
-            while True:
-                depth_frame = depth_queue.get().getFrame()  # Get the full depth frame
-
-                depth = Calculate_Depth(depth_frame)
-
-                print(f"Center depth: {depth} mm")
-
-                ret = rgb_queue.get()
-
-                # # Get left frame
-                # left_frame = left_queue.get().getCvFrame()
-                # # Get right frame 
-                # right_frame = right_queue.get().getCvFrame()
-
-                # imOut = np.hstack((left_frame, right_frame))
-                # imOut = np.uint8(left_frame/2 + right_frame/2)
-
-                # Display output image
-                # cv2.imshow("Stereo Pair", imOut)
+    angle = None
+    if(depth > 120 and depth < 160): 
+        # Pre-process the frame
+        processed_frame, angle = process_frame(frame_rgb)
+    else:
+        processed_frame = frame_rgb
                 
-                frame = None
-                if ret:
-                    frame = ret.getCvFrame()
-                else:
-                    continue
-
-                frame_rgb = frame#cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-                angle = None
-                if(depth > 170 and depth < 250): 
-                    # Pre-process the frame
-                    processed_frame, angle = process_frame(frame_rgb)
-                else:
-                    processed_frame = frame_rgb
-                    
-                if angle:
-                    if abs(angle-old_angle) <= 10:#margin
-                        angle = 0
-                    else:
-                        tmp = angle
-                        angle -= old_angle
-                        old_angle = tmp
-                    queue.put(angle)
-                
-                
-                cv2.imshow("Real-Time Segmentation", processed_frame)
-                # cv2.imshow("Depth", depth_frame)
-                # cv2.imshow("left", left_frame)
-                # cv2.imshow("right", right_frame)
-                
-
-
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-
-        finally:
-            cv2.destroyAllWindows()
+    return angle, processed_frame

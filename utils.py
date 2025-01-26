@@ -124,21 +124,22 @@ def create_RGB_Depth_pipeline():
     mono_left = pipeline.create(dai.node.MonoCamera)
     mono_right = pipeline.create(dai.node.MonoCamera)
 
-    mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-    mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+    mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_480_P)
+    mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_480_P)
 
     mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
     mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
 
 
     stereo = pipeline.create(dai.node.StereoDepth)
-    stereo.initialConfig.setConfidenceThreshold(240)
+    stereo.initialConfig.setConfidenceThreshold(200)
     stereo.setRectifyEdgeFillColor(0)  # Black, to better see the cutout
     stereo.setExtendedDisparity(True)
     stereo.setSubpixel(True)  # Enable subpixel precision for finer depth
-    stereo.initialConfig.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_7x7)
+    stereo.initialConfig.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_5x5)
     # stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
     stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
+    stereo.initialConfig.setDisparityShift(80) # TODO - does this add noise ? Tune this to optimal value (after defining camera place on the hand) - and change hand and fastsam to use the new min depth
 
     # Link mono cameras to stereo node
     mono_left.out.link(stereo.left)
@@ -165,6 +166,31 @@ def create_RGB_Depth_pipeline():
     # ir_led.setBrightness(100)  # Set brightness level (0-100)
 
     return pipeline
+
+def Calculate_Depth(depth_frame):
+    # Retrieve only the center depth value
+
+    center_x, center_y = width // 2, height // 2
+
+    kernel_size = 150  # Adjust the size of the window
+    start_x = center_x - kernel_size // 2
+    start_y = center_y - kernel_size // 2
+
+    # Extract a small region around the center
+    center_region = depth_frame[start_y:start_y + kernel_size, start_x:start_x + kernel_size]
+
+    # Flatten the region and filter out zero values
+    flattened_depths = center_region.flatten()
+    non_zero_depths = flattened_depths[flattened_depths > 0]
+
+    # Sort the non-zero depths and take the 200 closest points
+    sorted_depths = np.sort(non_zero_depths)
+    closest_pixels = sorted_depths[:min(len(sorted_depths), 200)]
+
+    # Calculate the median depth in that region
+    center_depth_median = np.median(closest_pixels)
+
+    return center_depth_median
 
 def frameNorm(frame, bbox):
     normVals = np.full(len(bbox), frame.shape[0])
