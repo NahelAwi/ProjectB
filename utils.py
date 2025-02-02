@@ -8,6 +8,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 
+FPS = 15
 width = 320
 height = 256
 center_x, center_y = width // 2, height // 2
@@ -111,7 +112,7 @@ def create_RGB_Depth_pipeline():
     rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
     rgb_cam.setPreviewSize(width,height)
     rgb_cam.setPreviewKeepAspectRatio(False)
-    # rgb_cam.setFps(FPS)
+    rgb_cam.setFps(FPS)
 
     # Create outputs
     rgb_output = pipeline.create(dai.node.XLinkOut)
@@ -169,9 +170,9 @@ def create_RGB_Depth_pipeline():
 
 def Calculate_Depth(depth_frame, filtered_depth):
     # Compute the ROI in the center.
-    ROI = 150
+    ROI = 200
     MIN_VALID_PIXELS = 50
-    ALPHA = 0.4
+    ALPHA = 0.3
     roi_half = ROI // 2
     start_x = max(0, center_x - roi_half)
     start_y = max(0, center_y - roi_half)
@@ -190,7 +191,7 @@ def Calculate_Depth(depth_frame, filtered_depth):
         # Sort valid depths (lowest values = closest points).
         sorted_depths = np.sort(valid_depths, axis=None)
         # You can choose to use a subset (e.g. the 500 closest points) to avoid outliers.
-        num_points = min(len(sorted_depths), 1000)
+        num_points = min(len(sorted_depths), 2000)
         closest_depths = sorted_depths[:num_points]
         current_depth = np.median(closest_depths)
 

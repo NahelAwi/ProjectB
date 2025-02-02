@@ -70,24 +70,32 @@ async def rotate(queue, grip_queue, hand_is_open_queue):
     async with BleakClient(DEVICE_ADDRESS) as client:
         if client.is_connected:
             print(f"Connected to {DEVICE_ADDRESS}")
+            
+            command = grip(0, 1000)
+            await client.write_gatt_char(CHARACTERISTIC_UUID, command)
+            await asyncio.sleep(1)
+
             while True:
                 # angle = random.randint(-90, 90)
-                angle = queue.get()
+                angle = 0
+                try:
+                    angle = queue.get(block=False)
+                except Empty:
+                    angle = 0
+
                 is_grip = None
                 try:
                     is_grip = grip_queue.get(block=False)
                 except Empty:
-                    pass
-                if angle is None:
-                    print("unexpected behaviour - angle shouldn't return None - as queue.get() is blocking")
-                    exit(-99)
+                    is_grip = None
+
                 if is_grip:
                     command = grip(1, 1000)
                     await client.write_gatt_char(CHARACTERISTIC_UUID, command)
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(1)
                     command = grip(0, 1000)
                     await client.write_gatt_char(CHARACTERISTIC_UUID, command)
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(1)
                     hand_is_open_queue.put(1)
                 
                 if angle == 0:
@@ -106,8 +114,8 @@ async def rotate(queue, grip_queue, hand_is_open_queue):
             print(f"Failed to connect to {DEVICE_ADDRESS}")
 
 
-def hand_control_thread(queue, grip_queue):
+def hand_control_thread(queue, grip_queue, hand_is_open_queue):
     #asyncio.run(rotate(queue))
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(rotate(queue, grip_queue))
+    loop.run_until_complete(rotate(queue, grip_queue, hand_is_open_queue))
     loop.close()

@@ -14,7 +14,7 @@ print("device = ", device)
 model = None
 
 # Define the prompt (points and labels)
-radius = 40
+radius = 20
 num_points = 40
 angles = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
 circle_points = np.array([[int(center_x - radius * np.cos(angle)), int(center_y - radius * np.sin(angle))] for angle in angles])
@@ -198,7 +198,7 @@ def process_frame(frame_rgb):
 def calc_angle(depth, frame_rgb, old_angle):
 
     angle = None
-    if(depth < 200): 
+    if(depth < 170): 
         # Pre-process the frame
         processed_frame, angle = process_frame(frame_rgb)
     else:

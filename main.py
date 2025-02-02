@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     init_fastsam()
     min_depth = 999
-    filtered_depth = 0
+    filtered_depth = 999
 
     pipeline = create_RGB_Depth_pipeline()
 
@@ -82,19 +82,22 @@ if __name__ == "__main__":
                 angle, processed_frame = calc_angle(filtered_depth, frame_rgb, old_angle)
 
                 if angle:
-                    if abs(angle-old_angle) <= 10:#margin
+                    if abs(angle-old_angle) <= 20:#margin
                         angle = 0
-                        if filtered_depth < 140:
+                        if filtered_depth < 140 and filtered_depth > 130:
                             grip_queue.put(1)
-                        hand_is_open_queue.get() # block until hand is open
+                            angle_queue.put(angle)
+                            hand_is_open_queue.get() # block until hand is open
+                            filtered_depth = 999
+                        else:
+                            angle_queue.put(angle)
+
                     else:
                         tmp = angle
                         angle -= old_angle
                         old_angle = tmp
+                        angle_queue.put(angle)
                     
-                    angle_queue.put(angle)
-                
-                
                 cv2.imshow("Real-Time Segmentation", processed_frame)
                 # cv2.imshow("Depth", depth_frame)
                 # cv2.imshow("left", left_frame)
