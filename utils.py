@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 width = 320
 height = 256
+center_x, center_y = width // 2, height // 2
 
 # # Function to create DepthAI pipeline for RGB and depth streams
 def create_RGB_pipeline():
@@ -130,16 +131,15 @@ def create_RGB_Depth_pipeline():
     mono_left.setBoardSocket(dai.CameraBoardSocket.CAM_B)
     mono_right.setBoardSocket(dai.CameraBoardSocket.CAM_C)
 
-
     stereo = pipeline.create(dai.node.StereoDepth)
-    stereo.initialConfig.setConfidenceThreshold(200)
+    stereo.initialConfig.setConfidenceThreshold(240)
     stereo.setRectifyEdgeFillColor(0)  # Black, to better see the cutout
     stereo.setExtendedDisparity(True)
     stereo.setSubpixel(True)  # Enable subpixel precision for finer depth
     stereo.initialConfig.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_5x5)
     # stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
     stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
-    stereo.initialConfig.setDisparityShift(80) # TODO - does this add noise ? Tune this to optimal value (after defining camera place on the hand) - and change hand and fastsam to use the new min depth
+    stereo.initialConfig.setDisparityShift(70) # TODO - does this add noise ? Tune this to optimal value (after defining camera place on the hand) - and change hand and fastsam to use the new min depth
 
     # Link mono cameras to stereo node
     mono_left.out.link(stereo.left)
@@ -167,30 +167,39 @@ def create_RGB_Depth_pipeline():
 
     return pipeline
 
-def Calculate_Depth(depth_frame):
-    # Retrieve only the center depth value
+def Calculate_Depth(depth_frame, filtered_depth):
+    # Compute the ROI in the center.
+    ROI = 150
+    MIN_VALID_PIXELS = 50
+    ALPHA = 0.4
+    roi_half = ROI // 2
+    start_x = max(0, center_x - roi_half)
+    start_y = max(0, center_y - roi_half)
+    end_x = min(width, center_x + roi_half)
+    end_y = min(height, center_y + roi_half)
+    center_region = depth_frame[start_y:end_y, start_x:end_x]
 
-    center_x, center_y = width // 2, height // 2
+    # Create a mask for valid (non-zero) depth readings.
+    valid_mask = center_region > 0
+    valid_depths = center_region[valid_mask]
 
-    kernel_size = 150  # Adjust the size of the window
-    start_x = center_x - kernel_size // 2
-    start_y = center_y - kernel_size // 2
+    if valid_depths.size < MIN_VALID_PIXELS:
+        # If there are too few valid points, assume no reliable object is present.
+        current_depth = filtered_depth if filtered_depth is not None else 0
+    else:
+        # Sort valid depths (lowest values = closest points).
+        sorted_depths = np.sort(valid_depths, axis=None)
+        # You can choose to use a subset (e.g. the 500 closest points) to avoid outliers.
+        num_points = min(len(sorted_depths), 1000)
+        closest_depths = sorted_depths[:num_points]
+        current_depth = np.median(closest_depths)
 
-    # Extract a small region around the center
-    center_region = depth_frame[start_y:start_y + kernel_size, start_x:start_x + kernel_size]
-
-    # Flatten the region and filter out zero values
-    flattened_depths = center_region.flatten()
-    non_zero_depths = flattened_depths[flattened_depths > 0]
-
-    # Sort the non-zero depths and take the 200 closest points
-    sorted_depths = np.sort(non_zero_depths)
-    closest_pixels = sorted_depths[:min(len(sorted_depths), 200)]
-
-    # Calculate the median depth in that region
-    center_depth_median = np.median(closest_pixels)
-
-    return center_depth_median
+    # Temporal smoothing: update our filtered depth value.
+    if filtered_depth is None:
+        filtered_depth = current_depth
+    else:
+        filtered_depth = ALPHA * current_depth + (1 - ALPHA) * filtered_depth
+    return filtered_depth
 
 def frameNorm(frame, bbox):
     normVals = np.full(len(bbox), frame.shape[0])

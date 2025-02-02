@@ -2,6 +2,7 @@ import asyncio
 import random
 import math
 from bleak import BleakClient, BleakScanner
+from queue import Empty
 
 # Replace with your device's MAC address
 # DEVICE_ADDRESS = "B8:D6:1A:43:60:52"
@@ -61,11 +62,10 @@ def grip(direction, time_in_ms, torque=0):
 #     print("Error: not found!")
 #     exit(-1)
 
-async def rotate(queue):
+async def rotate(queue, grip_queue, hand_is_open_queue):
     RPM = 10
     angular_v = RPM*360/60
     angular_v_in_ms = angular_v / 1000
-    gripped = False
 
     async with BleakClient(DEVICE_ADDRESS) as client:
         if client.is_connected:
@@ -73,27 +73,30 @@ async def rotate(queue):
             while True:
                 # angle = random.randint(-90, 90)
                 angle = queue.get()
+                is_grip = None
+                try:
+                    is_grip = grip_queue.get(block=False)
+                except Empty:
+                    pass
                 if angle is None:
                     print("unexpected behaviour - angle shouldn't return None - as queue.get() is blocking")
                     exit(-99)
+                if is_grip:
+                    command = grip(1, 1000)
+                    await client.write_gatt_char(CHARACTERISTIC_UUID, command)
+                    await asyncio.sleep(5)
+                    command = grip(0, 1000)
+                    await client.write_gatt_char(CHARACTERISTIC_UUID, command)
+                    await asyncio.sleep(5)
+                    hand_is_open_queue.put(1)
+                
                 if angle == 0:
-                    if not gripped:
-                        command = grip(1, 1000)
-                        await client.write_gatt_char(CHARACTERISTIC_UUID, command)  # does this wait for the whole rotation to happen ? if not, do the wait below (in the sleep)
-                        await asyncio.sleep(1)
-                        gripped = True
                     continue
                 direction = 1 if (angle >= 0) else 0
                 angle = abs(angle)
                 rotation_time_in_ms = (angle / angular_v_in_ms)
                 time_units = int(rotation_time_in_ms / 50)  # Convert to time units (50ms per unit)
                 
-                if gripped:
-                    command = grip(0, 1000)
-                    await client.write_gatt_char(CHARACTERISTIC_UUID, command)  # does this wait for the whole rotation to happen ? if not, do the wait below (in the sleep)
-                    await asyncio.sleep(1)
-                    gripped = False
-
                 command = rotate_hand(time_units, direction)
                 await client.write_gatt_char(CHARACTERISTIC_UUID, command)  # does this wait for the whole rotation to happen ? if not, do the wait below (in the sleep)
                 print(f"Sent command: {command}")
@@ -103,8 +106,8 @@ async def rotate(queue):
             print(f"Failed to connect to {DEVICE_ADDRESS}")
 
 
-def hand_control_thread(queue):
+def hand_control_thread(queue, grip_queue):
     #asyncio.run(rotate(queue))
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(rotate(queue))
+    loop.run_until_complete(rotate(queue, grip_queue))
     loop.close()

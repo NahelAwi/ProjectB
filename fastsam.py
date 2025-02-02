@@ -11,12 +11,11 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # device = "cpu"
 print("device = ", device)
 
-center_x, center_y = width // 2, height // 2
 model = None
 
 # Define the prompt (points and labels)
-radius = 20
-num_points = 30
+radius = 40
+num_points = 40
 angles = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
 circle_points = np.array([[int(center_x - radius * np.cos(angle)), int(center_y - radius * np.sin(angle))] for angle in angles])
 all_points = np.vstack([[center_x, center_y], circle_points])
@@ -153,9 +152,9 @@ def process_frame(frame_rgb):
         # Run inference with points prompt
         with torch.no_grad():
             with autocast():
-                print("start inference")
+                # print("start inference")
                 results = model(input_tensor, points=all_points, labels=labels)
-                print("done inference")
+                # print("done inference")
     except Exception as e:
         print(f"Inference failed with error: {e}")
         return frame_rgb, None
@@ -193,13 +192,13 @@ def process_frame(frame_rgb):
             x,y = point
             cv2.circle(processed_frame, (x,y), radius=3, color=(255,0,0), thickness=-1)
         cv2.arrowedLine(processed_frame, (int(center_y), int(center_x)), (end_y, end_x), (0, 255, 0), 2, tipLength=0.3)
-        print("angle = ", angle)
+        # print("angle = ", angle)
     return processed_frame, angle
 
 def calc_angle(depth, frame_rgb, old_angle):
 
     angle = None
-    if(depth > 120 and depth < 160): 
+    if(depth < 200): 
         # Pre-process the frame
         processed_frame, angle = process_frame(frame_rgb)
     else:

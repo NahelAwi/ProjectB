@@ -1,18 +1,38 @@
 from multiprocessing import Process, Queue
 import time
 import random
+import argparse
 
 from fastsam import calc_angle, init_fastsam
 from hand_control import hand_control_thread
 from utils import *
 
+class DummyQ:
+    def put(self, v):
+        return
+    def get(self):
+        return None
+
 if __name__ == "__main__":
 
-    angle_queue = Queue()
-    p2 = Process(target=hand_control_thread, args=(angle_queue,))
-    p2.start()
+    parser = argparse.ArgumentParser(description="Example script with optional flags.")
+    parser.add_argument("--no_hand", action="store_true")
+    args = parser.parse_args()
+
+    if args.no_hand:
+        angle_queue = DummyQ()
+        grip_queue = DummyQ()
+        hand_is_open_queue = DummyQ()
+    else:
+        angle_queue = Queue(maxsize=1)
+        grip_queue = Queue(maxsize=1)
+        hand_is_open_queue = Queue(maxsize=1)
+        p2 = Process(target=hand_control_thread, args=(angle_queue,grip_queue,hand_is_open_queue,))
+        p2.start()
 
     init_fastsam()
+    min_depth = 999
+    filtered_depth = 0
 
     pipeline = create_RGB_Depth_pipeline()
 
@@ -25,6 +45,10 @@ if __name__ == "__main__":
             old_angle = 0
             while True:
                 depth_frame = depth_queue.get().getFrame()  # Get the full depth frame
+
+
+                depth_frame = cv2.resize(depth_frame, (width, height), interpolation=cv2.INTER_NEAREST)
+                depth_frame = cv2.medianBlur(depth_frame, 5)
 
                 ret = rgb_queue.get()
 
@@ -49,19 +73,25 @@ if __name__ == "__main__":
                 processed_frame = frame_rgb
                 angle = None
 
-                depth = Calculate_Depth(depth_frame)
+                filtered_depth = Calculate_Depth(depth_frame, filtered_depth)
 
-                print(f"Center depth: {depth} mm")
+                min_depth = min(min_depth, filtered_depth)
 
-                angle, processed_frame = calc_angle(depth, frame_rgb, old_angle)
+                print(f"Center depth: {filtered_depth} mm")
+
+                angle, processed_frame = calc_angle(filtered_depth, frame_rgb, old_angle)
 
                 if angle:
                     if abs(angle-old_angle) <= 10:#margin
                         angle = 0
+                        if filtered_depth < 140:
+                            grip_queue.put(1)
+                        hand_is_open_queue.get() # block until hand is open
                     else:
                         tmp = angle
                         angle -= old_angle
                         old_angle = tmp
+                    
                     angle_queue.put(angle)
                 
                 
@@ -77,5 +107,4 @@ if __name__ == "__main__":
 
         finally:
             cv2.destroyAllWindows()
-            p2.join()
 
