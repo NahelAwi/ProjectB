@@ -198,7 +198,7 @@ def process_frame(frame_rgb):
 def calc_angle(depth, frame_rgb, old_angle):
 
     angle = None
-    if(depth < 170): 
+    if(depth < 250): 
         # Pre-process the frame
         processed_frame, angle = process_frame(frame_rgb)
     else:

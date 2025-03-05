@@ -62,7 +62,7 @@ def grip(direction, time_in_ms, torque=0):
 #     print("Error: not found!")
 #     exit(-1)
 
-async def rotate(queue, grip_queue, hand_is_open_queue):
+async def rotate(queue, grip_queue, hand_is_open_queue, rotation_done_queue):
     RPM = 10
     angular_v = RPM*360/60
     angular_v_in_ms = angular_v / 1000
@@ -92,7 +92,7 @@ async def rotate(queue, grip_queue, hand_is_open_queue):
                 if is_grip:
                     command = grip(1, 1000)
                     await client.write_gatt_char(CHARACTERISTIC_UUID, command)
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(4)
                     command = grip(0, 1000)
                     await client.write_gatt_char(CHARACTERISTIC_UUID, command)
                     await asyncio.sleep(1)
@@ -108,14 +108,15 @@ async def rotate(queue, grip_queue, hand_is_open_queue):
                 command = rotate_hand(time_units, direction)
                 await client.write_gatt_char(CHARACTERISTIC_UUID, command)  # does this wait for the whole rotation to happen ? if not, do the wait below (in the sleep)
                 print(f"Sent command: {command}")
-                await asyncio.sleep(rotation_time_in_ms/1000)    # sleep for the calculated time above ?
+                await asyncio.sleep(2*rotation_time_in_ms/1000)    # sleep for the calculated time above ?
                 # await asyncio.sleep(2)
+                rotation_done_queue.put(1)
         else:
             print(f"Failed to connect to {DEVICE_ADDRESS}")
 
 
-def hand_control_thread(queue, grip_queue, hand_is_open_queue):
+def hand_control_thread(queue, grip_queue, hand_is_open_queue, rotation_done_queue):
     #asyncio.run(rotate(queue))
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(rotate(queue, grip_queue, hand_is_open_queue))
+    loop.run_until_complete(rotate(queue, grip_queue, hand_is_open_queue, rotation_done_queue))
     loop.close()
