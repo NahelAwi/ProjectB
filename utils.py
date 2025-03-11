@@ -8,6 +8,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 
+FPS = 15
 width = 320
 height = 256
 center_x, center_y = width // 2, height // 2
@@ -111,7 +112,7 @@ def create_RGB_Depth_pipeline():
     rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
     rgb_cam.setPreviewSize(width,height)
     rgb_cam.setPreviewKeepAspectRatio(False)
-    # rgb_cam.setFps(FPS)
+    rgb_cam.setFps(FPS)
 
     # Create outputs
     rgb_output = pipeline.create(dai.node.XLinkOut)
@@ -139,7 +140,7 @@ def create_RGB_Depth_pipeline():
     stereo.initialConfig.setMedianFilter(dai.StereoDepthProperties.MedianFilter.KERNEL_5x5)
     # stereo.setDepthAlign(dai.CameraBoardSocket.CAM_A)
     stereo.setLeftRightCheck(True)  # Helps resolve depth for near objects
-    stereo.initialConfig.setDisparityShift(70) # TODO - does this add noise ? Tune this to optimal value (after defining camera place on the hand) - and change hand and fastsam to use the new min depth
+    stereo.initialConfig.setDisparityShift(50) # TODO - does this add noise ? Tune this to optimal value (after defining camera place on the hand) - and change hand and fastsam to use the new min depth
 
     # Link mono cameras to stereo node
     mono_left.out.link(stereo.left)
@@ -169,9 +170,9 @@ def create_RGB_Depth_pipeline():
 
 def Calculate_Depth(depth_frame, filtered_depth):
     # Compute the ROI in the center.
-    ROI = 150
+    ROI = 400
     MIN_VALID_PIXELS = 50
-    ALPHA = 0.4
+    ALPHA = 0.8
     roi_half = ROI // 2
     start_x = max(0, center_x - roi_half)
     start_y = max(0, center_y - roi_half)
@@ -190,7 +191,7 @@ def Calculate_Depth(depth_frame, filtered_depth):
         # Sort valid depths (lowest values = closest points).
         sorted_depths = np.sort(valid_depths, axis=None)
         # You can choose to use a subset (e.g. the 500 closest points) to avoid outliers.
-        num_points = min(len(sorted_depths), 1000)
+        num_points = len(sorted_depths)
         closest_depths = sorted_depths[:num_points]
         current_depth = np.median(closest_depths)
 
@@ -323,7 +324,8 @@ def calculate_pca_rotation_angle_from_points(points):
     angle_pca = torch.atan2(principal_component[1], principal_component[0]) * 180 / torch.pi  # Convert to degrees
 
     # Ensure the angle is within [-90, 90] degrees
-    if angle_pca < 0:
+    angle_pca += 90
+    if angle_pca < -90:
         angle_pca += 180
     if angle_pca > 90:
         angle_pca -= 180

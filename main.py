@@ -23,16 +23,18 @@ if __name__ == "__main__":
         angle_queue = DummyQ()
         grip_queue = DummyQ()
         hand_is_open_queue = DummyQ()
+        rotation_done_queue = DumymQ()
     else:
         angle_queue = Queue(maxsize=1)
         grip_queue = Queue(maxsize=1)
         hand_is_open_queue = Queue(maxsize=1)
-        p2 = Process(target=hand_control_thread, args=(angle_queue,grip_queue,hand_is_open_queue,))
+        rotation_done_queue = Queue(maxsize=1)
+        p2 = Process(target=hand_control_thread, args=(angle_queue,grip_queue,hand_is_open_queue,rotation_done_queue,))
         p2.start()
 
     init_fastsam()
     min_depth = 999
-    filtered_depth = 0
+    filtered_depth = 999
 
     pipeline = create_RGB_Depth_pipeline()
 
@@ -77,24 +79,29 @@ if __name__ == "__main__":
 
                 min_depth = min(min_depth, filtered_depth)
 
-                print(f"Center depth: {filtered_depth} mm")
-
                 angle, processed_frame = calc_angle(filtered_depth, frame_rgb, old_angle)
 
+                print(f"Center depth: {filtered_depth} mm")
+                print(f"Angle: {angle}")
+
                 if angle:
-                    if abs(angle-old_angle) <= 10:#margin
+                    if abs(angle-old_angle) <= 30:#margin
                         angle = 0
-                        if filtered_depth < 140:
+                        if filtered_depth < 190:
                             grip_queue.put(1)
-                        hand_is_open_queue.get() # block until hand is open
+                            angle_queue.put(angle)
+                            hand_is_open_queue.get() # block until hand is open
+                            filtered_depth = 999
+                        else:
+                            angle_queue.put(angle)
+
                     else:
-                        tmp = angle
-                        angle -= old_angle
-                        old_angle = tmp
+                        # tmp = angle
+                        # angle -= old_angle
+                        angle_queue.put(-angle)
+                        rotation_done_queue.get()   # block until hand rotation done
+                        # old_angle = tmp
                     
-                    angle_queue.put(angle)
-                
-                
                 cv2.imshow("Real-Time Segmentation", processed_frame)
                 # cv2.imshow("Depth", depth_frame)
                 # cv2.imshow("left", left_frame)
